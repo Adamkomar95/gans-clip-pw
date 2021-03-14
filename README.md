@@ -1,5 +1,4 @@
-# scrabble-gan-pw
-scrabble-gan-pw
+# dixit-card-generator-pw
+dixit-card-generator-pw
 
 
-dżem dobry
