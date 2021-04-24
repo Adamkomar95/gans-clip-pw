@@ -221,7 +221,7 @@ class DataFlow:
             class_temperature=2.,
             save_date_time=False,
             save_best=False,
-            experimental_resample=False,
+            # experimental_resample=False,
             ema_decay=0.99,
             num_cutouts=128,
             center_bias=False,
@@ -231,7 +231,7 @@ class DataFlow:
         self.torch_deterministic = torch_deterministic
         self.max_classes = max_classes
         self.class_temperature = class_temperature
-        self.experimental_resample = experimental_resample
+        # self.experimental_resample = experimental_resample
         self.ema_decay = ema_decay
         self.num_cutouts = num_cutouts
         self.center_bias = center_bias

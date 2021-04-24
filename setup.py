@@ -23,7 +23,6 @@ setup(
         'ftfy',
         'boto3',  # BigGAN
         'requests'  # BigGAN
-        'urlparse'  # BigGAN
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
