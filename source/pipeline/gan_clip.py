@@ -117,6 +117,8 @@ class BigSleep(nn.Module):
             center_bias=False
     ):
         super().__init__()
+        self.normalize_image = normalize_image
+        self.perceptor = perceptor
         self.loss_coef = loss_coef
         self.image_size = image_size
         self.num_cutouts = num_cutouts
