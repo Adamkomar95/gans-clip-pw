@@ -380,7 +380,7 @@ class DataFlow:
             bilinear=self.bilinear,
             max_classes=self.max_classes,
             class_temperature=self.class_temperature,
-            experimental_resample=self.experimental_resample,
+            # experimental_resample=self.experimental_resample,
             ema_decay=self.ema_decay,
             num_cutouts=self.num_cutouts,
             center_bias=self.center_bias,
