@@ -3,7 +3,6 @@ Latents + BigGAN => Model + EMA -> BigSleep (CLIP w lossie)
 
 
 Odpuszczam na razie signal (biblioteka do procesowania asynchronicznego i "bezpiecznego zatrzymywania procesu"
-Odpuszczam multi-prompty
 
 
 """
