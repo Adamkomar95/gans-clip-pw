@@ -16,7 +16,14 @@ setup(
         'generative adversarial networks'
     ],
     install_requires=[
-        'numpy'
+        'torch>=1.7.1',
+        'torchvision>=0.8.2',
+        'tqdm',
+        'regex',
+        'ftfy',
+        'boto3',  # BigGAN
+        'requests'  # BigGAN
+        'urlparse'  # BigGAN
     ],
     classifiers=[
         'Development Status :: 4 - Beta',

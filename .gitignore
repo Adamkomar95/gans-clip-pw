@@ -1,2 +1,4 @@
 **/.DS_Store
+**/__pycache__
 .idea
+pw_gans_clip.egg-info/
