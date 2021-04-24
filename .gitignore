@@ -1,2 +1,8 @@
 **/.DS_Store
 .idea
+.vscode/
+.templates/
+__pycache__/
+_out/
+venv/
+content/
