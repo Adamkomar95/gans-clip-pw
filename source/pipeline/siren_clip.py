@@ -236,7 +236,7 @@ class SirenDataFlow(nn.Module):
         self.open_folder = open_folder
         self.save_progress = save_progress
         self.text = text
-        self.image = img
+        self.img = img
         self.clip_encoding = clip_encoding
         # Generowanie na podstawie podanego obrazka - na razie ignoruję
 
