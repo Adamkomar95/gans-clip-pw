@@ -37,6 +37,9 @@ def open_folder(path):
 
 
 def create_text_path(text=None, img=None, encoding=None):
+    """
+    Trzeba uważać na długość haseł (rózne modele, róznie to znoszą)
+    """
     input_name = ""
     if text is not None:
         input_name += text

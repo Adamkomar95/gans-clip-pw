@@ -392,7 +392,7 @@ class SirenDataFlow(nn.Module):
         print('Siren and optimizer initialized.')
 
         # paths
-        self.textpath = create_text_path(self.perceptor.context_length, text=self.text, img=self.img,
+        self.textpath = create_text_path(text=self.text, img=self.img,
                                          encoding=self.clip_encoding)
         self.filename = self.image_output_path()
 
