@@ -20,7 +20,7 @@ from torchvision.utils import save_image
 
 from source.models.gans.BigGAN.BigGAN import BigGAN
 from source.models.clip.clip import load, tokenize
-from source.pipeline.utils import exists, create_text_path, open_folder
+from source.pipeline.utils.utils import exists, create_text_path, open_folder
 from source.pipeline.utils.torch_utils import differentiable_topk, create_clip_img_transform, rand_cutout
 from source.pipeline.utils.ema import EMA
 
