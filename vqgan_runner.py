@@ -32,8 +32,6 @@ import pytorch_ssim as ssim
 #to refactor
 from clip_fft import slice_imgs, checkout
 from utils import pad_up_to, basename, img_list, img_read, plot_text
-# from progress_bar import ProgressIPy as ProgressBar
-
 import pytorch_lightning as pl
 
 
@@ -81,6 +79,7 @@ def makevid(seq_dir, size=None):
 print('\nDone with function imports!')
 
 ####### INPUT 
+######## SETTINGS AND GENERATING
 
 workdir = '_out'
 tempdir = os.path.join(workdir, 'ttt')
@@ -92,13 +91,7 @@ text = "sun in the ocean" #@param {type:"string"}
 # translate = False #@param {type:"boolean"}
 # invert = False #@param {type:"boolean"}
 upload_image = False #@param {type:"boolean"}    - WILL BE IMPORTANT FOR MODELS COMPARISON
-
-########
-
-######## SETTINGS AND GENERATING
-
 os.makedirs(tempdir, exist_ok=True)
-
 sideX = 400 #@param {type:"integer"}
 sideY = 400 #@param {type:"integer"}
 model = 'ViT-B/32' #@param ['ViT-B/32', 'RN101', 'RN50x4', 'RN50']
@@ -119,9 +112,6 @@ if 'RN' in model:
 def enc_text(txt):
     emb = model_clip.encode_text(clip.tokenize(txt).cuda())
     return emb.detach().clone()
-
-# if diverse != 0:
-#  samples = int(samples * 0.5)
         
 norm_in = torchvision.transforms.Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711))
 sign = -1.
@@ -196,8 +186,8 @@ def train(i):
 #    out_enc2 = model_clip.encode_image(imgs_sliced[-1])
 #    loss += diverse * torch.cosine_similarity(out_enc, out_enc2, dim=-1).mean()
 #    del out_enc2; torch.cuda.empty_cache()
-  # if upload_image:
-  #     loss += sign * 0.5 * torch.cosine_similarity(img_enc, out_enc, dim=-1).mean()
+  if upload_image:
+      loss += sign * 0.5 * torch.cosine_similarity(img_enc, out_enc, dim=-1).mean()
   if len(text) > 0: # input text
       loss += sign * torch.cosine_similarity(txt_enc, out_enc, dim=-1).mean()
 #      if no_text > 0:

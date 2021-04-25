@@ -18,11 +18,11 @@ os.environ['KMP_DUPLICATE_LIB_OK']='True'
 import lpips
 
 from utils import pad_up_to, basename, img_list, img_read, plot_text, txt_clean
-try: # progress bar for notebooks 
-    get_ipython().__class__.__name__
-    from progress_bar import ProgressIPy as ProgressBar
-except: # normal console
-    from progress_bar import ProgressBar
+# try: # progress bar for notebooks 
+#     get_ipython().__class__.__name__
+#     from progress_bar import ProgressIPy as ProgressBar
+# except: # normal console
+#     from progress_bar import ProgressBar
 
 clip_models = ['ViT-B/32', 'RN50', 'RN50x4', 'RN101']
 
@@ -342,7 +342,7 @@ def main():
     tempdir = os.path.join(a.out_dir, out_name)
     os.makedirs(tempdir, exist_ok=True)
 
-    pbar = ProgressBar(a.steps // a.fstep)
+    # pbar = ProgressBar(a.steps // a.fstep)
     for i in range(a.steps):
         train(i)
 
