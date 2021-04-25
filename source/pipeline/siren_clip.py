@@ -1,4 +1,3 @@
-import os
 import random
 from datetime import datetime
 from pathlib import Path
@@ -8,35 +7,17 @@ from torch import nn
 from torch.cuda.amp import GradScaler, autocast
 from torch_optimizer import DiffGrad, AdamP
 from PIL import Image
-from imageio import imread, mimsave
 import torchvision.transforms as T
 from tqdm import trange, tqdm
 
 
-
 from source.models.clip.clip import load, tokenize
-from source.pipeline.utils.utils import exists, default, open_folder
+from source.pipeline.utils.utils import exists, default, open_folder, create_text_path
 from source.pipeline.utils.torch_utils import rand_cutout, create_clip_img_transform, interpolate
 
 
 def norm_siren_output(img):
     return ((img + 1) * 0.5).clamp(0.0, 1.0)
-
-
-def create_text_path(context_length, text=None, img=None, encoding=None, separator=None):
-    if text is not None:
-        if separator is not None and separator in text:
-            #Reduces filename to first epoch text
-            text = text[:text.index(separator, )]
-        input_name = text.replace(" ", "_")[:context_length]
-    elif img is not None:
-        if isinstance(img, str):
-            input_name = "".join(img.replace(" ", "_").split(".")[:-1])
-        else:
-            input_name = "PIL_img"
-    else:
-        input_name = "your_encoding"
-    return input_name
 
 
 class DeepDaze(nn.Module):
@@ -167,7 +148,7 @@ class DeepDaze(nn.Module):
         return out, loss
 
 
-class Imagine(nn.Module):
+class SirenDataFlow(nn.Module):
     def __init__(
             self,
             *,
@@ -186,21 +167,16 @@ class Imagine(nn.Module):
             seed=None,
             open_folder=True,
             save_date_time=False,
-            start_image_path=None,
-            start_image_train_iters=10,
-            start_image_lr=3e-4,
+            # start_image_path=None,
+            # start_image_train_iters=10,
+            # start_image_lr=3e-4,
             theta_initial=None,
             theta_hidden=None,
-            model_name="ViT-B/32",
+            model_name="ViT-B/32", # można w BigSleep tak samo podawać model w parametrze
             lower_bound_cutout=0.1, # should be smaller than 0.8
             upper_bound_cutout=1.0,
             saturate_bound=False,
             averaging_weight=0.3,
-
-            create_story=False,
-            story_start_words=5,
-            story_words_per_epoch=5,
-            story_separator=None,
             gauss_sampling=False,
             gauss_mean=0.6,
             gauss_std=0.2,
@@ -210,11 +186,13 @@ class Imagine(nn.Module):
             optimizer="AdamP",
             jit=True,
             hidden_size=256,
-            save_gif=False,
-            save_video=False,
     ):
 
         super().__init__()
+
+        self.epochs = epochs
+        self.model_name = model_name
+        self.jit = jit
 
         if exists(seed):
             tqdm.write(f'setting seed: {seed}')
@@ -223,89 +201,35 @@ class Imagine(nn.Module):
             random.seed(seed)
             torch.backends.cudnn.deterministic = True
             
-        # fields for story creation:
-        self.create_story = create_story
-        self.words = None
-        self.separator = str(story_separator) if story_separator is not None else None
-        if self.separator is not None and text is not None:
-            #exit if text is just the separator
-            if str(text).replace(' ','').replace(self.separator,'') == '':
-                print('Exiting because the text only consists of the separator! Needs words or phrases that are separated by the separator.')
-                exit()
-            #adds a space to each separator and removes double spaces that might be generated
-            text = text.replace(self.separator,self.separator+' ').replace('  ',' ').strip()
-        self.all_words = text.split(" ") if text is not None else None
-        self.num_start_words = story_start_words
-        self.words_per_epoch = story_words_per_epoch
-        if create_story:
-            assert text is not None,  "We need text input to create a story..."
-            # overwrite epochs to match story length
-            num_words = len(self.all_words)
-            self.epochs = 1 + (num_words - self.num_start_words) / self.words_per_epoch
-            # add one epoch if not divisible
-            self.epochs = int(self.epochs) if int(self.epochs) == self.epochs else int(self.epochs) + 1
-            if self.separator is not None:
-                if self.separator not in text:
-                    print("Separator '"+self.separator+"' will be ignored since not in text!")
-                    self.separator = None
-                else:
-                    self.epochs = len(list(filter(None,text.split(self.separator))))
-            print("Running for", self.epochs, "epochs" + (" (split with '"+self.separator+"' as the separator)" if self.separator is not None else ""))
-        else: 
-            self.epochs = epochs
-
         # jit models only compatible with version 1.7.1
         if "1.7.1" not in torch.__version__:
-            if jit == True:
+            if self.jit:
                 print("Setting jit to False because torch version is not 1.7.1.")
-            jit = False
+            self.jit = False
 
-        # Load CLIP
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        clip_perceptor, norm = load(model_name, jit=jit, device=self.device)
-        self.perceptor = clip_perceptor.eval()
-        for param in self.perceptor.parameters():
-            param.requires_grad = False
-        if jit == False:
-            input_res = clip_perceptor.visual.input_resolution
-        else:
-            input_res = clip_perceptor.input_resolution.item()
-        self.clip_transform = create_clip_img_transform(input_res)
-        
         self.iterations = iterations
         self.image_width = image_width
-        total_batches = self.epochs * self.iterations * batch_size * gradient_accumulate_every
-        model = DeepDaze(
-                self.perceptor,
-                norm,
-                input_res,
-                total_batches,
-                batch_size=batch_size,
-                image_width=image_width,
-                num_layers=num_layers,
-                theta_initial=theta_initial,
-                theta_hidden=theta_hidden,
-                lower_bound_cutout=lower_bound_cutout,
-                upper_bound_cutout=upper_bound_cutout,
-                saturate_bound=saturate_bound,
-                gauss_sampling=gauss_sampling,
-                gauss_mean=gauss_mean,
-                gauss_std=gauss_std,
-                do_cutout=do_cutout,
-                center_bias=center_bias,
-                center_focus=center_focus,
-                hidden_size=hidden_size,
-                averaging_weight=averaging_weight,
-            ).to(self.device)
-        self.model = model
+        self.total_batches = self.epochs * self.iterations * batch_size * gradient_accumulate_every
+        self.batch_size = batch_size
+        self.image_width = image_width
+        self.num_layers = num_layers
+        self.theta_initial = theta_initial
+        self.theta_hidden = theta_hidden
+        self.lower_bound_cutout = lower_bound_cutout
+        self.upper_bound_cutout = upper_bound_cutout
+        self.saturate_bound = saturate_bound
+        self.gauss_sampling = gauss_sampling
+        self.gauss_mean = gauss_mean
+        self.gauss_std = gauss_std
+        self.do_cutout = do_cutout
+        self.center_bias = center_bias
+        self.center_focus = center_focus
+        self.hidden_size = hidden_size
+        self.averaging_weight = averaging_weight
+        self.lr = lr
+        self.optimizer = optimizer
+        self.model = None
         self.scaler = GradScaler()
-        siren_params = model.model.parameters()
-        if optimizer == "AdamP":
-            self.optimizer = AdamP(siren_params, lr)
-        elif optimizer == "Adam":
-            self.optimizer = torch.optim.Adam(siren_params, lr)
-        elif optimizer == "DiffGrad":
-            self.optimizer = DiffGrad(siren_params, lr)
         self.gradient_accumulate_every = gradient_accumulate_every
         self.save_every = save_every
         self.save_date_time = save_date_time
@@ -313,28 +237,22 @@ class Imagine(nn.Module):
         self.save_progress = save_progress
         self.text = text
         self.image = img
-        self.textpath = create_text_path(self.perceptor.context_length, text=text, img=img, encoding=clip_encoding, separator=story_separator)
-        self.filename = self.image_output_path()
-        
-        # create coding to optimize for
-        self.clip_encoding = self.create_clip_encoding(text=text, img=img, encoding=clip_encoding)
+        self.clip_encoding = clip_encoding
+        # Generowanie na podstawie podanego obrazka - na razie ignoruję
 
-        self.start_image = None
-        self.start_image_train_iters = start_image_train_iters
-        self.start_image_lr = start_image_lr
-        if exists(start_image_path):
-            file = Path(start_image_path)
-            assert file.exists(), f'file does not exist at given starting image path {self.start_image_path}'
-            image = Image.open(str(file))
-            start_img_transform = T.Compose([T.Resize(image_width),
-                                             T.CenterCrop((image_width, image_width)),
-                                             T.ToTensor()])
-            image_tensor = start_img_transform(image).unsqueeze(0).to(self.device)
-            self.start_image = image_tensor
+        # self.start_image = None
+        # self.start_image_train_iters = start_image_train_iters
+        # self.start_image_lr = start_image_lr
+        # if exists(start_image_path):
+        #     file = Path(start_image_path)
+        #     assert file.exists(), f'file does not exist at given starting image path {self.start_image_path}'
+        #     image = Image.open(str(file))
+        #     start_img_transform = T.Compose([T.Resize(image_width),
+        #                                      T.CenterCrop((image_width, image_width)),
+        #                                      T.ToTensor()])
+        #     image_tensor = start_img_transform(image).unsqueeze(0).to(self.device)
+        #     self.start_image = image_tensor
 
-        self.save_gif = save_gif
-        self.save_video = save_video
-            
     def create_clip_encoding(self, text=None, img=None, encoding=None):
         self.text = text
         self.img = img
@@ -367,43 +285,6 @@ class Imagine(nn.Module):
     def set_clip_encoding(self, text=None, img=None, encoding=None):
         encoding = self.create_clip_encoding(text=text, img=img, encoding=encoding)
         self.clip_encoding = encoding.to(self.device)
-    
-    def index_of_first_separator(self) -> int:
-        for c, word in enumerate(self.all_words):
-            if self.separator in str(word):
-                return c +1
-
-    def update_story_encoding(self, epoch, iteration):
-        if self.separator is not None:
-            self.words = " ".join(self.all_words[:self.index_of_first_separator()])
-            #removes separator from epoch-text
-            self.words = self.words.replace(self.separator,'')
-            self.all_words = self.all_words[self.index_of_first_separator():]
-        else:
-            if self.words is None:
-                self.words = " ".join(self.all_words[:self.num_start_words])
-                self.all_words = self.all_words[self.num_start_words:]
-            else:
-                # add words_per_epoch new words
-                count = 0
-                while count < self.words_per_epoch and len(self.all_words) > 0:
-                    new_word = self.all_words[0]
-                    self.words = " ".join(self.words.split(" ") + [new_word])
-                    self.all_words = self.all_words[1:]
-                    count += 1
-                # remove words until it fits in context length
-                while len(self.words) > self.perceptor.context_length:
-                    # remove first word
-                    self.words = " ".join(self.words.split(" ")[1:])
-        # get new encoding
-        print("Now thinking of: ", '"', self.words, '"')
-        sequence_number = self.get_img_sequence_number(epoch, iteration)
-        # save new words to disc
-        with open("story_transitions.txt", "a") as f:
-            f.write(f"{epoch}, {sequence_number}, {self.words}\n")
-        
-        encoding = self.create_text_encoding(self.words)
-        return encoding
 
     def image_output_path(self, sequence_number=None):
         """
@@ -455,42 +336,89 @@ class Imagine(nn.Module):
         
         pil_img = T.ToPILImage()(img.squeeze())
         pil_img.save(self.filename, quality=95, subsampling=0)
-        pil_img.save(f"{self.textpath}.jpg", quality=95, subsampling=0)
+        pil_img.save(f"siren_{self.textpath}.jpg", quality=95, subsampling=0)
 
         tqdm.write(f'image updated at "./{str(self.filename)}"')
 
-    def generate_gif(self):
-        images = []
-        for file_name in sorted(os.listdir('../../../pipeline/')):
-            if file_name.startswith(self.textpath) and file_name != f'{self.textpath}.jpg':
-                images.append(imread(os.path.join('../../../pipeline/', file_name)))
+    def run(self):
 
-        if self.save_video:
-            mimsave(f'{self.textpath}.mp4', images)
-            print(f'Generated image generation animation at ./{self.textpath}.mp4')
-        if self.save_gif:
-            mimsave(f'{self.textpath}.gif', images)
-            print(f'Generated image generation animation at ./{self.textpath}.gif')
+        # Load CLIP
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        clip_perceptor, norm = load(self.model_name, jit=self.jit, device=self.device)
+        self.perceptor = clip_perceptor.eval()
+        for param in self.perceptor.parameters():
+            param.requires_grad = False
+        if self.jit == False:
+            input_res = clip_perceptor.visual.input_resolution
+        else:
+            input_res = clip_perceptor.input_resolution.item()
+        self.clip_transform = create_clip_img_transform(input_res)
 
-    def forward(self):
-        if exists(self.start_image):
-            tqdm.write('Preparing with initial image...')
-            optim = DiffGrad(self.model.model.parameters(), lr = self.start_image_lr)
-            pbar = trange(self.start_image_train_iters, desc='iteration')
-            try:
-                for _ in pbar:
-                    loss = self.model.model(self.start_image)
-                    loss.backward()
-                    pbar.set_description(f'loss: {loss.item():.2f}')
+        print('CLIP Loaded, text,image encoded')
 
-                    optim.step()
-                    optim.zero_grad()
-            except KeyboardInterrupt:
-                print('interrupted by keyboard, gracefully exiting')
-                return exit()
+        # Siren
+        self.model = DeepDaze(
+                self.perceptor,
+                norm,
+                input_res,
+                self.total_batches,
+                batch_size=self.batch_size,
+                image_width=self.image_width,
+                num_layers=self.num_layers,
+                theta_initial=self.theta_initial,
+                theta_hidden=self.theta_hidden,
+                lower_bound_cutout=self.lower_bound_cutout,
+                upper_bound_cutout=self.upper_bound_cutout,
+                saturate_bound=self.saturate_bound,
+                gauss_sampling=self.gauss_sampling,
+                gauss_mean=self.gauss_mean,
+                gauss_std=self.gauss_std,
+                do_cutout=self.do_cutout,
+                center_bias=self.center_bias,
+                center_focus=self.center_focus,
+                hidden_size=self.hidden_size,
+                averaging_weight=self.averaging_weight,
+            ).to(self.device)
 
-            del self.start_image
-            del optim
+        # optimizer
+        siren_params = self.model.model.parameters()
+        if self.optimizer == "AdamP":
+            self.optimizer = AdamP(siren_params, self.lr)
+        elif self.optimizer == "Adam":
+            self.optimizer = torch.optim.Adam(siren_params, self.lr)
+        elif self.optimizer == "DiffGrad":
+            self.optimizer = DiffGrad(siren_params, self.lr)
+
+        print('Siren and optimizer initialized.')
+
+        # paths
+        self.textpath = create_text_path(self.perceptor.context_length, text=self.text, img=self.img,
+                                         encoding=self.clip_encoding)
+        self.filename = self.image_output_path()
+
+        # create coding to optimize for
+        self.clip_encoding = self.create_clip_encoding(text=self.text, img=self.img, encoding=self.clip_encoding)
+
+        # PRZETWARZANIE ZDJECIA POCZATKOWEGO - IGNORUJE
+
+        # if exists(self.start_image):
+        #     tqdm.write('Preparing with initial image...')
+        #     optim = DiffGrad(self.model.model.parameters(), lr = self.start_image_lr)
+        #     pbar = trange(self.start_image_train_iters, desc='iteration')
+        #     try:
+        #         for _ in pbar:
+        #             loss = self.model.model(self.start_image)
+        #             loss.backward()
+        #             pbar.set_description(f'loss: {loss.item():.2f}')
+        #
+        #             optim.step()
+        #             optim.zero_grad()
+        #     except KeyboardInterrupt:
+        #         print('interrupted by keyboard, gracefully exiting')
+        #         return exit()
+        #
+        #     del self.start_image
+        #     del optim
 
         tqdm.write(f'Imagining "{self.textpath}" from the depths of my weights...')
 
@@ -498,7 +426,7 @@ class Imagine(nn.Module):
             self.model(self.clip_encoding, dry_run=True) # do one warmup step due to potential issue with CLIP and CUDA
 
         if self.open_folder:
-            open_folder('../../../pipeline/')
+            open_folder('/')
             self.open_folder = False
 
         try:
@@ -508,14 +436,8 @@ class Imagine(nn.Module):
                     _, loss = self.train_step(epoch, i)
                     pbar.set_description(f'loss: {loss.item():.2f}')
 
-                # Update clip_encoding per epoch if we are creating a story
-                if self.create_story:
-                    self.clip_encoding = self.update_story_encoding(epoch, i)
         except KeyboardInterrupt:
             print('interrupted by keyboard, gracefully exiting')
             return
 
-        self.save_image(epoch, i) # one final save at end
-
-        if (self.save_gif or self.save_video) and self.save_progress:
-            self.generate_gif()
+        self.save_image(epoch, i)  # one final save at end

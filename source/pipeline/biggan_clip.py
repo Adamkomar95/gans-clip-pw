@@ -313,7 +313,7 @@ class BigGanDataFlow:
             text_path = datetime.now().strftime("%y%m%d-%H%M%S-") + text_path
 
         self.text_path = text_path
-        self.filename = Path(f'./{text_path}{self.seed_suffix}.png')
+        self.filename = Path(f'./biggan_{text_path}{self.seed_suffix}.png')
         self.encode_max_and_min(text, img=img, encoding=encoding, text_min=text_min)  # Tokenize and encode each prompt
 
     def reset(self):

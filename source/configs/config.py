@@ -1,5 +1,7 @@
 class Train:
-    text = 'Dog in the fog'
+    TEXT = 'Dog in the fog'
+    EPOCHS = 1
+    ITERATIONS = 500
 
 
 class Config:
