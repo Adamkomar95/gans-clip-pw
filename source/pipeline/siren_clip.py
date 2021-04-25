@@ -258,8 +258,6 @@ class SirenDataFlow(nn.Module):
         self.img = img
         if encoding is not None:
             encoding = encoding.to(self.device)
-        elif self.create_story:
-            encoding = self.update_story_encoding(epoch=0, iteration=1)
         elif text is not None and img is not None:
             encoding = (self.create_text_encoding(text) + self.create_img_encoding(img)) / 2
         elif text is not None:
