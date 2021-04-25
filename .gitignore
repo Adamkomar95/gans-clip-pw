@@ -2,3 +2,12 @@
 **/__pycache__
 .idea
 pw_gans_clip.egg-info/
+.idea
+.vscode/
+.templates/
+__pycache__/
+_out/
+venv/
+content/
+result.jpg
+environment.yaml
