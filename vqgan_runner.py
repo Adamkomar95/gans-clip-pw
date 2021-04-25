@@ -116,40 +116,12 @@ def enc_text(txt):
 norm_in = torchvision.transforms.Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711))
 sign = -1.
 
-# if upload_image:
-#   in_img = list(uploaded.values())[0]
-#   print(' image:', list(uploaded)[0])
-#   img_in = torch.from_numpy(imageio.imread(in_img).astype(np.float32)/255.).unsqueeze(0).permute(0,3,1,2).cuda()[:,:3,:,:]
-#   in_sliced = slice_imgs([img_in], samples, modsize, transform=norm_in)[0]
-#   img_enc = model_clip.encode_image(in_sliced).detach().clone()
-#   if sync > 0:
-#     overscan = True
-#     ssim_loss = ssim.SSIM(window_size = 11)
-#     ssim_size = [sideY//4, sideX//4]
-#     img_in = F.interpolate(img_in, ssim_size).float()
-#     # img_in = F.interpolate(img_in, (sideY, sideX)).float()
-#   else:
-#     del img_in
-#   del in_sliced; torch.cuda.empty_cache()
+
 
 if len(text) > 0:
   print(' text:', text)
-  # if translate:
-  #   translator = Translator()
-  #   text = translator.translate(text, dest='en').text
-  #   print(' translated to:', text) 
   txt_enc = enc_text(text)
-#  if no_text > 0:
-#      txt_plot = torch.from_numpy(plot_text(text, modsize)/255.).unsqueeze(0).permute(0,3,1,2).cuda()
-#      txt_plot_enc = model_clip.encode_image(txt_plot).detach().clone()
 
-# if len(subtract) > 0:
-#   print(' without:', subtract)
-#   if translate:
-#       translator = Translator()
-#       subtract = translator.translate(subtract, dest='en').text
-#       print(' translated to:', subtract) 
-#   txt_enc0 = enc_text(subtract)
 
 config_vqgan = load_config("./content/models_TT/model-%d.yaml" % int(VQGAN_size), display=False)
 model_vqgan = load_vqgan(config_vqgan, ckpt_path="./content/models_TT/last-%d.ckpt" % int(VQGAN_size)).cuda()

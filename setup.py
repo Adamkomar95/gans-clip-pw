@@ -13,6 +13,7 @@ setup(
         'ftfy',
         'boto3',  # BigGAN
         'requests'  # BigGAN
+        #PLACEHOLDER FOR VQGAN DEPENDENCIES
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
