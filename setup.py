@@ -22,7 +22,8 @@ setup(
         'regex',
         'ftfy',
         'boto3',  # BigGAN
-        'requests'  # BigGAN
+        'torch_optimizer',  # Siren
+        'siren_pytorch'  # Siren
     ],
     classifiers=[
         'Development Status :: 4 - Beta',

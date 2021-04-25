@@ -1,6 +1,7 @@
 import torch
 import random
 import torchvision.transforms as T
+import torch.nn.functional as F
 
 
 def differentiable_topk(x, k, temperature=1.):
@@ -51,3 +52,7 @@ def rand_cutout(image, size, center_bias=False, center_focus=2):
         offset_y = random.randint(min_offset, max_offset)
     cutout = image[:, :, offset_x:offset_x + size, offset_y:offset_y + size]
     return cutout
+
+
+def interpolate(image, size):
+    return F.interpolate(image, (size, size), mode='bilinear', align_corners=False)

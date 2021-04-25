@@ -7,6 +7,10 @@ def exists(val):
     return val is not None
 
 
+def default(val, d):
+    return val if exists(val) else d
+
+
 def open_folder(path):
     if os.path.isfile(path):
         path = os.path.dirname(path)
