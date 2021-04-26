@@ -5,4 +5,4 @@ train:
 models:
   vqgan:
     model_config: "/home/mdomagala/Pulpit/gans-clip-pw/content/models_TT/model-1024.yaml"
-    model_ckpt: "/content/models_TT/last-1024.ckpt"
+    model_ckpt: "/home/mdomagala/Pulpit/gans-clip-pw/content/models_TT/last-1024.ckpt"
