@@ -1,0 +1,4 @@
+train:
+  epochs: 1
+  iterations: 10
+  text: "Dog in the fog"

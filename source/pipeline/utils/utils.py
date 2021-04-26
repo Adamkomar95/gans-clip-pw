@@ -53,3 +53,27 @@ def create_text_path(text=None, img=None, encoding=None):
     if encoding is not None:
         input_name = "your_encoding"
     return input_name.replace("-", "_").replace(",", "").replace(" ", "_").replace("|", "--").strip('-_')[:255]
+
+
+def load_config(config_path, display=False):
+    """
+    
+    """
+    config = OmegaConf.load(config_path)
+    if display:
+        print(yaml.dump(OmegaConf.to_container(config)))
+    return config
+
+
+def load_vqgan(config, ckpt_path=None):
+    model = VQModel(**config.model.params)
+    if ckpt_path is not None:
+        sd = torch.load(ckpt_path, map_location="cpu")["state_dict"]
+        missing, unexpected = model.load_state_dict(sd, strict=False)
+    return model.eval()
+
+
+def vqgan_image(model, z):
+    x = model.decode(z)
+    x = (x+1.)/2.
+    return x
