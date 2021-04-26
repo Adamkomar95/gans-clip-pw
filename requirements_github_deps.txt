@@ -1,8 +1,0 @@
-#CLIP - obvious reasons
-#pytorch-ssim - python package with structural similarity loss, to 
-
-# -e git+git://github.com/openai/CLIP.git#egg=CLIP.git
-# git+https://github.com/marwask/tsfresh.git@v0.14.1.aii_fixed#egg=tsfresh
-# git+https://github.com/Po-Hsun-Su/pytorch-ssim#egg=pytorch-ssim#egg=pytorch-ssim
-https://github.com/eps696/aphantasia#egg=aphantasia
-https://github.com/CompVis/taming-transformers#egg=taming-transformers

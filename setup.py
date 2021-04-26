@@ -9,6 +9,7 @@ setup(
     description='PW-GANS-CLIP',
     author='Adam Komorowski, Maciej Domagała',
     keywords=[
+        'machine learning',
         'artificial intelligence',
         'deep learning',
         'transformers',

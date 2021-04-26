@@ -19,7 +19,7 @@ from source.pipeline.biggan_clip import BigGanDataFlow
 from source.pipeline.siren_clip import SirenDataFlow
 from source.pipeline.vqgan_clip import VQGanDataFlow
 
-@hydra.main(config_path=".", config_name="run_config")
+@hydra.main(config_path="./configs", config_name="run_config")
 def runner(cfg: DictConfig):
 
     print("Initializing training for configuration:")
