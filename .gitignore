@@ -8,6 +8,5 @@ pw_gans_clip.egg-info/
 __pycache__/
 _out/
 venv/
-content/
 result.jpg
 environment.yaml
