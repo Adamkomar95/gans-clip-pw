@@ -12,7 +12,7 @@ from tqdm import trange, tqdm
 
 
 from source.models.clip.clip import load, tokenize
-from source.pipeline.utils.utils import exists, default, open_folder, create_text_path, load_vqgan, vqgan_image #, load_config
+from source.pipeline.utils.utils import exists, default, open_folder, create_text_path, load_vqgan, vqgan_image, slice_imgs, checkout#, load_config
 from source.pipeline.utils.torch_utils import rand_cutout, create_clip_img_transform, interpolate
 
 
@@ -46,7 +46,7 @@ import clip
 import pytorch_ssim as ssim
 
 #to refactor
-from clip_fft import slice_imgs, checkout
+# from clip_fft import slice_imgs, checkout
 from utils import pad_up_to, basename, img_list, img_read, plot_text
 import pytorch_lightning as pl
 
@@ -100,93 +100,6 @@ class VQGan(nn.Module):
 
         w0 = default(theta_hidden, 30.)
         w0_initial = default(theta_initial, 30.)
-
-        siren = SirenNet(
-            dim_in=2,
-            dim_hidden=hidden_size,
-            num_layers=num_layers,
-            dim_out=3,
-            use_bias=True,
-            w0=w0,
-            w0_initial=w0_initial
-        )
-
-        self.model = SirenWrapper(
-            siren,
-            image_width=image_width,
-            image_height=image_width
-        )
-
-        self.saturate_bound = saturate_bound
-        self.saturate_limit = 0.75  # cutouts above this value lead to destabilization
-        self.lower_bound_cutout = lower_bound_cutout
-        self.upper_bound_cutout = upper_bound_cutout
-        self.gauss_sampling = gauss_sampling
-        self.gauss_mean = gauss_mean
-        self.gauss_std = gauss_std
-        self.do_cutout = do_cutout
-        self.center_bias = center_bias
-        self.center_focus = center_focus
-        self.averaging_weight = averaging_weight
-        
-    def sample_sizes(self, lower, upper, width, gauss_mean):
-        if self.gauss_sampling:
-            gauss_samples = torch.zeros(self.batch_size).normal_(mean=gauss_mean, std=self.gauss_std)
-            outside_bounds_mask = (gauss_samples > upper) | (gauss_samples < upper)
-            gauss_samples[outside_bounds_mask] = torch.zeros((len(gauss_samples[outside_bounds_mask]),)).uniform_(lower, upper)
-            sizes = (gauss_samples * width).int()
-        else:
-            lower *= width
-            upper *= width
-            sizes = torch.randint(int(lower), int(upper), (self.batch_size,))
-        return sizes
-
-    def forward(self, text_embed, return_loss=True, dry_run=False):
-        out = self.model()
-        out = norm_siren_output(out)
-
-        if not return_loss:
-            return out
-                
-        # determine upper and lower sampling bound
-        width = out.shape[-1]
-        lower_bound = self.lower_bound_cutout
-        if self.saturate_bound:
-            progress_fraction = self.num_batches_processed / self.total_batches
-            lower_bound += (self.saturate_limit - self.lower_bound_cutout) * progress_fraction
-
-        # sample cutout sizes between lower and upper bound
-        sizes = self.sample_sizes(lower_bound, self.upper_bound_cutout, width, self.gauss_mean)
-
-        # create normalized random cutouts
-        if self.do_cutout:   
-            image_pieces = [rand_cutout(out, size, center_bias=self.center_bias, center_focus=self.center_focus) for size in sizes]
-            image_pieces = [interpolate(piece, self.input_resolution) for piece in image_pieces]
-        else:
-            image_pieces = [interpolate(out.clone(), self.input_resolution) for _ in sizes]
-
-        # normalize
-        image_pieces = torch.cat([self.normalize_image(piece) for piece in image_pieces])
-        
-        # calc image embedding
-        with autocast(enabled=False):
-            image_embed = self.perceptor.encode_image(image_pieces)
-            
-        # calc loss
-        # loss over averaged features of cutouts
-        avg_image_embed = image_embed.mean(dim=0).unsqueeze(0)
-        averaged_loss = -self.loss_coef * torch.cosine_similarity(text_embed, avg_image_embed, dim=-1).mean()
-        # loss over all cutouts
-        general_loss = -self.loss_coef * torch.cosine_similarity(text_embed, image_embed, dim=-1).mean()
-        # merge losses
-        loss = averaged_loss * (self.averaging_weight) + general_loss * (1 - self.averaging_weight)
-
-        # count batches
-        if not dry_run:
-            self.num_batches_processed += self.batch_size
-        
-        return out, loss
-
 
 class VQGanDataFlow(nn.Module):
     def __init__(
@@ -283,91 +196,6 @@ class VQGanDataFlow(nn.Module):
         self.model_path = model_path
         self.ckpt_path = ckpt_path
 
-    def create_clip_encoding(self, text=None, img=None, encoding=None):
-        self.text = text
-        self.img = img
-        if encoding is not None:
-            encoding = encoding.to(self.device)
-        elif text is not None and img is not None:
-            encoding = (self.create_text_encoding(text) + self.create_img_encoding(img)) / 2
-        elif text is not None:
-            encoding = self.create_text_encoding(text)
-        elif img is not None:
-            encoding = self.create_img_encoding(img)
-        return encoding
-
-    def create_text_encoding(self, text):
-        tokenized_text = tokenize(text).to(self.device)
-        with torch.no_grad():
-            text_encoding = self.perceptor.encode_text(tokenized_text).detach()
-        return text_encoding
-    
-    def create_img_encoding(self, img):
-        if isinstance(img, str):
-            img = Image.open(img)
-        normed_img = self.clip_transform(img).unsqueeze(0).to(self.device)
-        with torch.no_grad():
-            img_encoding = self.perceptor.encode_image(normed_img).detach()
-        return img_encoding
-    
-    def set_clip_encoding(self, text=None, img=None, encoding=None):
-        encoding = self.create_clip_encoding(text=text, img=img, encoding=encoding)
-        self.clip_encoding = encoding.to(self.device)
-
-    def image_output_path(self, sequence_number=None):
-        """
-        Returns underscore separated Path.
-        A current timestamp is prepended if `self.save_date_time` is set.
-        Sequence number left padded with 6 zeroes is appended if `save_every` is set.
-        :rtype: Path
-        """
-        output_path = self.textpath
-        if sequence_number:
-            sequence_number_left_padded = str(sequence_number).zfill(6)
-            output_path = f"{output_path}.{sequence_number_left_padded}"
-        if self.save_date_time:
-            current_time = datetime.now().strftime("%y%m%d-%H%M%S_%f")
-            output_path = f"{current_time}_{output_path}"
-        return Path(f"{output_path}.jpg")
-
-    def train_step(self, epoch, iteration):
-        total_loss = 0
-
-        for _ in range(self.gradient_accumulate_every):
-            with autocast(enabled=True):
-                out, loss = self.model(self.clip_encoding)
-            loss = loss / self.gradient_accumulate_every
-            total_loss += loss
-            self.scaler.scale(loss).backward()    
-        out = out.cpu().float().clamp(0., 1.)
-        self.scaler.step(self.optimizer)
-        self.scaler.update()
-        self.optimizer.zero_grad()
-
-        if (iteration % self.save_every == 0) and self.save_progress:
-            self.save_image(epoch, iteration, img=out)
-
-        return out, total_loss
-    
-    def get_img_sequence_number(self, epoch, iteration):
-        current_total_iterations = epoch * self.iterations + iteration
-        sequence_number = current_total_iterations // self.save_every
-        return sequence_number
-
-    @torch.no_grad()
-    def save_image(self, epoch, iteration, img=None):
-        sequence_number = self.get_img_sequence_number(epoch, iteration)
-
-        if img is None:
-            img = self.model(self.clip_encoding, return_loss=False).cpu().float().clamp(0., 1.)
-        self.filename = self.image_output_path(sequence_number=sequence_number)
-        
-        pil_img = T.ToPILImage()(img.squeeze())
-        pil_img.save(self.filename, quality=95, subsampling=0)
-        pil_img.save(f"siren_{self.textpath}.jpg", quality=95, subsampling=0)
-
-        tqdm.write(f'image updated at "./{str(self.filename)}"')
-
     def run(self):
 
         workdir = '_out'
@@ -381,13 +209,13 @@ class VQGanDataFlow(nn.Module):
         # invert = False #@param {type:"boolean"}
         upload_image = False #@param {type:"boolean"}    - WILL BE IMPORTANT FOR MODELS COMPARISON
         os.makedirs(tempdir, exist_ok=True)
-        sideX = 400 #@param {type:"integer"}
-        sideY = 400 #@param {type:"integer"}
+        sideX = 100 #@param {type:"integer"}
+        sideY = 100 #@param {type:"integer"}
         model = 'ViT-B/32' #@param ['ViT-B/32', 'RN101', 'RN50x4', 'RN50']
         VQGAN_size = 1024 #@param [1024, 16384]
         overscan = False #@param {type:"boolean"}
         sync =  0. #@param {type:"number"} - WILL BE IMPORTANT FOR MODELS COMPARISON
-        steps = 300 #@param {type:"integer"}
+        steps = 3 #@param {type:"integer"}
         samples = 1 #@param {type:"integer"}
         learning_rate = 0.1 #@param {type:"number"}
         save_freq = 1 #@param {type:"integer"}
@@ -410,7 +238,15 @@ class VQGanDataFlow(nn.Module):
             txt_enc = enc_text(text)
 
         config_vqgan = OmegaConf.load(self.model_path)
-        model_vqgan = load_vqgan(self.config_vqgan, ckpt_path=ckpt_path).cuda()
+        model_vqgan = load_vqgan(config_vqgan, ckpt_path=self.ckpt_path).cuda()
+
+        class latents(torch.nn.Module):
+            def __init__(self, shape):
+                super(latents, self).__init__()
+                init_rnd = torch.zeros(shape).normal_(0.,4.)
+                self.lats = torch.nn.Parameter(init_rnd.cuda())
+            def forward(self):
+                return self.lats # [1,256, h//16, w//16]
 
         shape = [1, 256, sideY//16, sideX//16]
         lats = latents(shape).cuda()
@@ -458,5 +294,5 @@ class VQGanDataFlow(nn.Module):
             train(i)
             print(f'Step {i+1}/{steps}...')
 
-        HTML(makevid(tempdir))
-        torch.save(lats.lats, tempdir + '.pt')
+        # HTML(makevid(tempdir))
+        # torch.save(lats.lats, tempdir + '.pt')

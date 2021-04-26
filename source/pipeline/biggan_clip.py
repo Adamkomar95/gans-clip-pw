@@ -209,7 +209,7 @@ class BigGanDataFlow:
             iterations=1050,
             save_progress=False,
             bilinear=False,
-            open_folder=True,
+            open_folder=False,
             seed=None,
             append_seed=False,
             torch_deterministic=False,
