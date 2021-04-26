@@ -1,7 +1,6 @@
 import hydra
 from omegaconf import DictConfig, OmegaConf
 
-from source.configs.config import Config
 from source.pipeline.biggan_clip import BigGanDataFlow
 from source.pipeline.siren_clip import SirenDataFlow
 from source.pipeline.vqgan_clip import VQGanDataFlow
@@ -26,7 +25,9 @@ def runner(cfg: DictConfig):
     print('VQGanXClip starting.')
     vqgan_pipeline = VQGanDataFlow(text=cfg.train.text,
                                     epochs=cfg.train.epochs,
-                                    iterations=cfg.train.iterations)
+                                    iterations=cfg.train.iterations,
+                                    model_path=cfg.models.vqgan.model_config,
+                                    ckpt_path=cfg.models.vqgan.model_ckpt)
     vqgan_pipeline.run()
     print('VQGanXClip finished.')
 

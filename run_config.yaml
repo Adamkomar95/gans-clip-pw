@@ -2,3 +2,7 @@ train:
   epochs: 1
   iterations: 10
   text: "Dog in the fog"
+models:
+  vqgan:
+    model_config: "/home/mdomagala/Pulpit/gans-clip-pw/content/models_TT/model-1024.yaml"
+    model_ckpt: "/content/models_TT/last-1024.ckpt"

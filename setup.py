@@ -12,13 +12,10 @@ setup(
         'regex',
         'ftfy',
         'boto3',  # BigGAN
-<<<<<<< HEAD
         'requests'  # BigGAN
         #PLACEHOLDER FOR VQGAN DEPENDENCIES
-=======
         'torch_optimizer',  # Siren
         'siren_pytorch'  # Siren
->>>>>>> siren
     ],
     classifiers=[
         'Development Status :: 4 - Beta',

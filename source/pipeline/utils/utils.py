@@ -55,14 +55,14 @@ def create_text_path(text=None, img=None, encoding=None):
     return input_name.replace("-", "_").replace(",", "").replace(" ", "_").replace("|", "--").strip('-_')[:255]
 
 
-def load_config(config_path, display=False):
-    """
-    To load VQGan model settings.
-    """
-    config = OmegaConf.load(config_path)
-    if display:
-        print(yaml.dump(OmegaConf.to_container(config)))
-    return config
+# def load_config(config_path, display=False):
+#     """
+#     To load VQGan model settings.
+#     """
+#     config = OmegaConf.load(config_path)
+#     if display:
+#         print(yaml.dump(OmegaConf.to_container(config)))
+#     return config
 
 
 def load_vqgan(config, ckpt_path=None):
@@ -77,3 +77,9 @@ def vqgan_image(model, z):
     x = model.decode(z)
     x = (x+1.)/2.
     return x
+
+#FOR VQGAN
+def instantiate_from_config(config):
+    if not "target" in config:
+        raise KeyError("Expected key `target` to instantiate.")
+    return get_obj_from_str(config["target"])(**config.get("params", dict()))

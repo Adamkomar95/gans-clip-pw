@@ -352,7 +352,7 @@ class SirenDataFlow(nn.Module):
             input_res = clip_perceptor.input_resolution.item()
         self.clip_transform = create_clip_img_transform(input_res)
 
-        print('CLIP Loaded, text,image encoded')
+        print('CLIP Loaded, text, image encoded')
 
         # Siren
         self.model = DeepDaze(

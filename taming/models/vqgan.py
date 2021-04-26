@@ -2,8 +2,8 @@ import torch
 import torch.nn.functional as F
 import pytorch_lightning as pl
 
-from main import instantiate_from_config
-
+# from main import instantiate_from_config
+from source.pipeline.utils.utils import instantiate_from_config
 from taming.modules.diffusionmodules.model import Encoder, Decoder, VUNet
 from taming.modules.vqvae.quantize import VectorQuantizer
 

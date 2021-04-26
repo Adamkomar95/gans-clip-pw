@@ -12,7 +12,7 @@ from tqdm import trange, tqdm
 
 
 from source.models.clip.clip import load, tokenize
-from source.pipeline.utils.utils import exists, default, open_folder, create_text_path, load_config, load_vqgan, vqgan_image
+from source.pipeline.utils.utils import exists, default, open_folder, create_text_path, load_vqgan, vqgan_image #, load_config
 from source.pipeline.utils.torch_utils import rand_cutout, create_clip_img_transform, interpolate
 
 
@@ -226,6 +226,8 @@ class VQGanDataFlow(nn.Module):
             optimizer="AdamP",
             jit=True,
             hidden_size=256,
+            model_path="./",
+            ckpt_path="./"
     ):
 
         super().__init__()
@@ -278,6 +280,8 @@ class VQGanDataFlow(nn.Module):
         self.text = text
         self.img = img
         self.clip_encoding = clip_encoding
+        self.model_path = model_path
+        self.ckpt_path = ckpt_path
 
     def create_clip_encoding(self, text=None, img=None, encoding=None):
         self.text = text
@@ -405,8 +409,8 @@ class VQGanDataFlow(nn.Module):
             print(' text:', text)
             txt_enc = enc_text(text)
 
-        config_vqgan = load_config("./content/models_TT/model-%d.yaml" % int(VQGAN_size), display=False)
-        model_vqgan = load_vqgan(config_vqgan, ckpt_path="./content/models_TT/last-%d.ckpt" % int(VQGAN_size)).cuda()
+        config_vqgan = OmegaConf.load(self.model_path)
+        model_vqgan = load_vqgan(self.config_vqgan, ckpt_path=ckpt_path).cuda()
 
         shape = [1, 256, sideY//16, sideX//16]
         lats = latents(shape).cuda()
