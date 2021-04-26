@@ -4,5 +4,5 @@ train:
   text: "Dog in the fog"
 models:
   vqgan:
-    model_config: "/home/mdomagala/Pulpit/gans-clip-pw/content/models_TT/model-1024.yaml"
-    model_ckpt: "/home/mdomagala/Pulpit/gans-clip-pw/content/models_TT/last-1024.ckpt"
+    model_config: "/home/mdomagala/Pulpit/gans-clip-pw/configs/vqgan/model-1024.yaml"
+    model_ckpt: "/home/mdomagala/Pulpit/gans-clip-pw/models/vqgan/last-1024.ckpt"

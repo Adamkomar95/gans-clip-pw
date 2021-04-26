@@ -21,7 +21,6 @@ from source.pipeline.vqgan_clip import VQGanDataFlow
 
 @hydra.main(config_path="./configs", config_name="run_config")
 def runner(cfg: DictConfig):
-
     print("Initializing training for configuration:")
     print(cfg.pretty())
 
@@ -41,8 +40,6 @@ def runner(cfg: DictConfig):
     # siren_pipeline.run()
     # print('SirenXClip finished.')
 
-
-
     print('VQGanXClip starting.')
     vqgan_pipeline = VQGanDataFlow(text=cfg.train.text,
                                     epochs=cfg.train.epochs,
@@ -51,6 +48,9 @@ def runner(cfg: DictConfig):
                                     ckpt_path=cfg.models.vqgan.model_ckpt)
     vqgan_pipeline.run()
     print('VQGanXClip finished.')
+
+
+    
 
 if __name__ == '__main__':
     runner()
