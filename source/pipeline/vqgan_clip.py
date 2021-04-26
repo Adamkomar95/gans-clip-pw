@@ -12,7 +12,7 @@ from tqdm import trange, tqdm
 
 
 from source.models.clip.clip import load, tokenize
-from source.pipeline.utils.utils import exists, default, open_folder, create_text_path
+from source.pipeline.utils.utils import exists, default, open_folder, create_text_path, load_config, load_vqgan, vqgan_image
 from source.pipeline.utils.torch_utils import rand_cutout, create_clip_img_transform, interpolate
 
 

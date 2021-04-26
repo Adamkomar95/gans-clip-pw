@@ -1,7 +1,7 @@
 import os
 import sys
 import subprocess
-
+from omegaconf import OmegaConf
 
 def exists(val):
     return val is not None
@@ -57,7 +57,7 @@ def create_text_path(text=None, img=None, encoding=None):
 
 def load_config(config_path, display=False):
     """
-    
+    To load VQGan model settings.
     """
     config = OmegaConf.load(config_path)
     if display:
