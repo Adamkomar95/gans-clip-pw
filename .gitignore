@@ -10,3 +10,5 @@ _out/
 venv/
 result.jpg
 environment.yaml
+content/models_TT/last-1024.ckpt
+outputs/
