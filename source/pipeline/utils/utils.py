@@ -7,6 +7,10 @@ def exists(val):
     return val is not None
 
 
+def default(val, d):
+    return val if exists(val) else d
+
+
 def open_folder(path):
     if os.path.isfile(path):
         path = os.path.dirname(path)
@@ -33,6 +37,9 @@ def open_folder(path):
 
 
 def create_text_path(text=None, img=None, encoding=None):
+    """
+    Trzeba uważać na długość haseł (rózne modele, róznie to znoszą)
+    """
     input_name = ""
     if text is not None:
         input_name += text

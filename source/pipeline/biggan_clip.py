@@ -7,10 +7,6 @@ Odpuszczam na razie signal (biblioteka do procesowania asynchronicznego i "bezpi
 
 """
 
-import os
-import sys
-import subprocess
-import random
 from datetime import datetime
 from pathlib import Path
 from PIL import Image
@@ -21,13 +17,12 @@ import torch.nn.functional as F
 from torch import nn
 from torch.optim import Adam
 from torchvision.utils import save_image
-import torchvision.transforms as T
 
 from source.models.gans.BigGAN.BigGAN import BigGAN
 from source.models.clip.clip import load, tokenize
-from source.pipeline.utils import exists, create_text_path, open_folder
-from source.pipeline.torch_utils import differentiable_topk, create_clip_img_transform, rand_cutout
-from source.pipeline.ema import EMA
+from source.pipeline.utils.utils import exists, create_text_path, open_folder
+from source.pipeline.utils.torch_utils import differentiable_topk, create_clip_img_transform, rand_cutout
+from source.pipeline.utils.ema import EMA
 
 
 class Latents(torch.nn.Module):
@@ -197,7 +192,7 @@ class BigSleep(nn.Module):
         return out, (lat_loss, cls_loss, sim_loss)
 
 
-class DataFlow:
+class BigGanDataFlow:
 
     def __init__(
             self,
@@ -318,7 +313,7 @@ class DataFlow:
             text_path = datetime.now().strftime("%y%m%d-%H%M%S-") + text_path
 
         self.text_path = text_path
-        self.filename = Path(f'./{text_path}{self.seed_suffix}.png')
+        self.filename = Path(f'./biggan_{text_path}{self.seed_suffix}.png')
         self.encode_max_and_min(text, img=img, encoding=encoding, text_min=text_min)  # Tokenize and encode each prompt
 
     def reset(self):
