@@ -126,7 +126,15 @@ class VQGanDataFlow(nn.Module):
             jit=True,
             hidden_size=256,
             model_path="./",
-            ckpt_path="./"
+            model_size=1024,
+            ckpt_path="./",
+            sideX=100,
+            sideY=100,
+            sync = 0.,
+            samples = 1.,
+            save_freq = 1,
+            overscan = False,
+            upload_image = False
     ):
 
         super().__init__()
@@ -179,8 +187,20 @@ class VQGanDataFlow(nn.Module):
         self.text = text
         self.img = img
         self.clip_encoding = clip_encoding
+
+        #VQGan addition
         self.model_path = model_path
         self.ckpt_path = ckpt_path
+        self.sideX = sideX #@param {type:"integer"}
+        self.sideY = sideY #@param {type:"integer"}
+        self.model_name = model_name #@param ['ViT-B/32', 'RN101', 'RN50x4', 'RN50']
+        self.samples = samples
+        self.upload_image = upload_image
+        self.model_size = model_size
+        self.overscan = overscan
+        self.sync = sync
+        self.save_freq = save_freq
+
 
     def create_clip_encoding(self, text=None, img=None, encoding=None):
         self.text = text
@@ -271,21 +291,16 @@ class VQGanDataFlow(nn.Module):
 
         workdir = '_out'
         tempdir = os.path.join(workdir, 'out')
-
-        # text = "A photo of a dog in the fog" #@param {type:"string"}
-        upload_image = False #@param {type:"boolean"}    - WILL BE IMPORTANT FOR MODELS COMPARISON
         os.makedirs(tempdir, exist_ok=True)
-        sideX = 100 #@param {type:"integer"}
-        sideY = 100 #@param {type:"integer"}
-        model = 'ViT-B/32' #@param ['ViT-B/32', 'RN101', 'RN50x4', 'RN50']
-        VQGAN_size = 1024 #@param [1024, 16384]
-        overscan = False #@param {type:"boolean"}
-        sync =  0. #@param {type:"number"} - WILL BE IMPORTANT FOR MODELS COMPARISON
-        steps = 10 #@param {type:"integer"}
-        samples = 1 #@param {type:"integer"}
-        learning_rate = 0.1 #@param {type:"number"}
-        save_freq = 1 #@param {type:"integer"}
 
+
+        # upload_image = False #@param {type:"boolean"}    - WILL BE IMPORTANT FOR MODELS COMPARISON
+        # # VQGAN_size = 1024 #@param [1024, 16384]
+        # # overscan = False #@param {type:"boolean"}
+        # # sync =  0. #@param {type:"number"} - WILL BE IMPORTANT FOR MODELS COMPARISON
+        # # samples = 1 #@param {type:"integer"}
+        # # learning_rate = 0.1 #@param {type:"number"}
+        # # save_freq = 1 #@param {type:"integer"}
 
         #### CLIP LOAD
 
@@ -306,10 +321,10 @@ class VQGanDataFlow(nn.Module):
 
         #END CLIP LOAD
 
-        modsize = 288 if model == 'RN50x4' else 224
+        modsize = 288 if self.model_name == 'RN50x4' else 224
         xmem = {'RN50':0.5, 'RN50x4':0.16, 'RN101':0.33}
-        if 'RN' in model:
-            samples = int(samples * xmem[model])
+        if 'RN' in self.model_name:
+            self.samples = int(self.samples * xmem[self.model_name])
 
         if len(self.text) > 0:
             print(' text:', self.text)
@@ -326,9 +341,9 @@ class VQGanDataFlow(nn.Module):
             def forward(self):
                 return self.lats # [1,256, h//16, w//16]
 
-        shape = [1, 256, sideY//16, sideX//16]
+        shape = [1, 256, self.sideY//16, self.sideX//16]
         lats = latents(shape).cuda()
-        optimizer = torch.optim.Adam(lats.parameters(), learning_rate)
+        optimizer = torch.optim.Adam(lats.parameters(), self.lr)
 
         def save_img(img, fname=None):
             img = np.array(img)[:,:,:]
@@ -348,16 +363,16 @@ class VQGanDataFlow(nn.Module):
             loss = 0
             img_out = vqgan_image(model_vqgan, lats())
 
-            imgs_sliced = slice_imgs([img_out], samples, modsize, norm_in, overscan=overscan)
+            imgs_sliced = slice_imgs([img_out], self.samples, modsize, norm_in, overscan=self.overscan)
             out_enc = clip_perceptor.encode_image(imgs_sliced[-1])
 
-            if upload_image:
+            if self.upload_image:
                 loss += -1. * 0.5 * torch.cosine_similarity(img_enc, out_enc, dim=-1).mean()
             if len(self.text) > 0:
                 loss += -1 * torch.cosine_similarity(txt_enc, out_enc, dim=-1).mean()
 
-            if sync > 0 and upload_image:
-                loss -= sync * ssim_loss(F.interpolate(img_out, ssim_size).float(), img_in)
+            if self.sync > 0 and self.upload_image:
+                loss -= self.sync * ssim_loss(F.interpolate(img_out, ssim_size).float(), img_in)
 
             del img_out, imgs_sliced, out_enc; torch.cuda.empty_cache()
 
@@ -365,9 +380,9 @@ class VQGanDataFlow(nn.Module):
             loss.backward()
             optimizer.step()
         
-            if i % save_freq == 0:
-                checkout(i // save_freq)
+            if i % self.save_freq == 0:
+                checkout(i // self.save_freq)
 
-        for i in range(steps):
+        for i in range(self.iterations):
             train(i)
-            print(f'Step {i+1}/{steps}...')
+            print(f'Step {i+1}/{self.iterations}...')

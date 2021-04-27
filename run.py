@@ -44,8 +44,20 @@ def runner(cfg: DictConfig):
     vqgan_pipeline = VQGanDataFlow(text=cfg.train.text,
                                     epochs=cfg.train.epochs,
                                     iterations=cfg.train.iterations,
+                                    lr = cfg.models.vqgan.lr,
                                     model_path=cfg.models.vqgan.model_config,
-                                    ckpt_path=cfg.models.vqgan.model_ckpt)
+                                    ckpt_path=cfg.models.vqgan.model_ckpt,
+                                    model_name=cfg.models.vqgan.model_name,
+                                    model_size=cfg.models.vqgan.model_size,
+                                    sideX=cfg.models.vqgan.sideX,
+                                    sideY=cfg.models.vqgan.sideY,
+                                    samples=cfg.models.vqgan.samples,
+                                    save_freq=cfg.models.vqgan.save_freq,
+                                    sync=cfg.models.vqgan.sync,
+                                    overscan=cfg.models.vqgan.overscan,
+                                    upload_image=cfg.models.vqgan.upload_image,
+                                    )
+
     vqgan_pipeline.run()
     print('VQGanXClip finished.')
 
