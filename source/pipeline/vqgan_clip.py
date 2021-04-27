@@ -27,22 +27,13 @@ import imageio
 import numpy as np
 import PIL
 from base64 import b64encode
-# import moviepy, moviepy.editor
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
 
-# from IPython.display import HTML, Image, display, clear_output
-# from IPython.core.interactiveshell import InteractiveShell
-# InteractiveShell.ast_node_interactivity = "all"
-# import ipywidgets as ipy
-
-import warnings
-warnings.filterwarnings("ignore")
-
-import clip
+# import clip
 import pytorch_ssim as ssim
 
 #to refactor
@@ -54,11 +45,6 @@ import yaml
 from omegaconf import OmegaConf
 from taming.models.vqgan import VQModel
 #####
-
-
-def norm_siren_output(img):
-    return ((img + 1) * 0.5).clamp(0.0, 1.0)
-
 
 class VQGan(nn.Module):
     def __init__(
@@ -284,12 +270,9 @@ class VQGanDataFlow(nn.Module):
     def run(self):
 
         workdir = '_out'
-        tempdir = os.path.join(workdir, 'ttt')
+        tempdir = os.path.join(workdir, 'out')
 
-        text = "A photo of a dog in the fog" #@param {type:"string"}
-        # subtract = "" #@param {type:"string"}
-        # translate = False #@param {type:"boolean"}
-        # invert = False #@param {type:"boolean"}
+        # text = "A photo of a dog in the fog" #@param {type:"string"}
         upload_image = False #@param {type:"boolean"}    - WILL BE IMPORTANT FOR MODELS COMPARISON
         os.makedirs(tempdir, exist_ok=True)
         sideX = 100 #@param {type:"integer"}
@@ -298,7 +281,7 @@ class VQGanDataFlow(nn.Module):
         VQGAN_size = 1024 #@param [1024, 16384]
         overscan = False #@param {type:"boolean"}
         sync =  0. #@param {type:"number"} - WILL BE IMPORTANT FOR MODELS COMPARISON
-        steps = 400 #@param {type:"integer"}
+        steps = 10 #@param {type:"integer"}
         samples = 1 #@param {type:"integer"}
         learning_rate = 0.1 #@param {type:"number"}
         save_freq = 1 #@param {type:"integer"}
@@ -323,22 +306,14 @@ class VQGanDataFlow(nn.Module):
 
         #END CLIP LOAD
 
-        # cli, _ = clip.load(model)
         modsize = 288 if model == 'RN50x4' else 224
         xmem = {'RN50':0.5, 'RN50x4':0.16, 'RN101':0.33}
         if 'RN' in model:
             samples = int(samples * xmem[model])
 
-        # def enc_text(txt):
-        #     emb = clip_perceptor.encode_text(clip.tokenize(txt).cuda())
-        #     return emb.detach().clone()
-                
-        # norm_in = torchvision.transforms.Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711))
-        sign = -1.
-
-        if len(text) > 0:
-            print(' text:', text)
-            txt_enc = self.create_text_encoding(text)
+        if len(self.text) > 0:
+            print(' text:', self.text)
+            txt_enc = self.create_text_encoding(self.text)
 
         config_vqgan = OmegaConf.load(self.model_path)
         model_vqgan = load_vqgan(config_vqgan, ckpt_path=self.ckpt_path).cuda()
@@ -378,7 +353,7 @@ class VQGanDataFlow(nn.Module):
 
             if upload_image:
                 loss += -1. * 0.5 * torch.cosine_similarity(img_enc, out_enc, dim=-1).mean()
-            if len(text) > 0:
+            if len(self.text) > 0:
                 loss += -1 * torch.cosine_similarity(txt_enc, out_enc, dim=-1).mean()
 
             if sync > 0 and upload_image:
@@ -396,6 +371,3 @@ class VQGanDataFlow(nn.Module):
         for i in range(steps):
             train(i)
             print(f'Step {i+1}/{steps}...')
-
-        # HTML(makevid(tempdir))
-        # torch.save(lats.lats, tempdir + '.pt')
