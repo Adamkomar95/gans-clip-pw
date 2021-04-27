@@ -22,9 +22,16 @@ setup(
         'tqdm',
         'regex',
         'ftfy',
+        'hydra-core', #configs management
+        'omegaconf', #configs management
         'boto3',  # BigGAN
+        'requests', #BigGAN
         'torch_optimizer',  # Siren
-        'siren_pytorch'  # Siren
+        'siren_pytorch',  # Siren
+        'pytorch-lightning', #VQGan
+        'imageio', #VQGan
+        'pytorch-ssim', #VQGan
+        'clip', #VQGan, to remove
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
