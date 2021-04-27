@@ -165,7 +165,7 @@ class SirenDataFlow(nn.Module):
             iterations=1050,
             save_progress=True,
             seed=None,
-            open_folder=True,
+            open_folder=False,
             save_date_time=False,
             # start_image_path=None,
             # start_image_train_iters=10,

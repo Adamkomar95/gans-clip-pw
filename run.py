@@ -50,7 +50,6 @@ def runner(cfg: DictConfig):
     print('VQGanXClip finished.')
 
 
-    
 
 if __name__ == '__main__':
     runner()
