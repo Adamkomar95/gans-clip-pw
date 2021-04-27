@@ -1,7 +1,7 @@
 train:
   epochs: 1
-  iterations: 10
-  text: "A photo of a dog in the fog"
+  iterations: 200
+  text: "A sun in the glass pyramid"
 models:
   vqgan:
     lr: 0.1
@@ -9,8 +9,8 @@ models:
     model_ckpt: "/home/mdomagala/Pulpit/gans-clip-pw/models/vqgan/last-1024.ckpt"
     model_name: "ViT-B/32"
     model_size: 1024
-    sideX: 100
-    sideY: 100
+    sideX: 200
+    sideY: 200
     sync: 0.
     samples: 1
     save_freq: 1

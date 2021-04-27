@@ -1,50 +1,25 @@
 import random
+import os
+import imageio
+import numpy as np
+from omegaconf import OmegaConf
 from datetime import datetime
 from pathlib import Path
 import torch
 from siren_pytorch import SirenNet, SirenWrapper
 from torch import nn
+import torch.nn.functional as F
 from torch.cuda.amp import GradScaler, autocast
 from torch_optimizer import DiffGrad, AdamP
 from PIL import Image
 import torchvision.transforms as T
 from tqdm import trange, tqdm
 
-
 from source.models.clip.clip import load, tokenize
-from source.pipeline.utils.utils import exists, default, open_folder, create_text_path, load_vqgan, vqgan_image, slice_imgs, checkout#, load_config
+from source.pipeline.utils.utils import exists, default, open_folder, create_text_path, load_vqgan, vqgan_image, slice_imgs, checkout
 from source.pipeline.utils.torch_utils import rand_cutout, create_clip_img_transform, interpolate
 
-
-##### OLD
-
-import os
-import io
-import time
-from math import exp
-import random
-import imageio
-import numpy as np
-import PIL
-from base64 import b64encode
-
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torchvision
-
-# import clip
-import pytorch_ssim as ssim
-
-#to refactor
-# from clip_fft import slice_imgs, checkout
-from utils import pad_up_to, basename, img_list, img_read
-import pytorch_lightning as pl
-
-import yaml
-from omegaconf import OmegaConf
 from taming.models.vqgan import VQModel
-#####
 
 class VQGan(nn.Module):
     def __init__(
@@ -293,21 +268,9 @@ class VQGanDataFlow(nn.Module):
         tempdir = os.path.join(workdir, 'out')
         os.makedirs(tempdir, exist_ok=True)
 
-
-        # upload_image = False #@param {type:"boolean"}    - WILL BE IMPORTANT FOR MODELS COMPARISON
-        # # VQGAN_size = 1024 #@param [1024, 16384]
-        # # overscan = False #@param {type:"boolean"}
-        # # sync =  0. #@param {type:"number"} - WILL BE IMPORTANT FOR MODELS COMPARISON
-        # # samples = 1 #@param {type:"integer"}
-        # # learning_rate = 0.1 #@param {type:"number"}
-        # # save_freq = 1 #@param {type:"integer"}
-
-        #### CLIP LOAD
-
         # Load CLIP
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         clip_perceptor, norm_in = load(self.model_name, jit=self.jit, device=self.device)
-        # clip_perceptor, norm = load(self.model_name, jit=self.jit, device=self.device)
         self.perceptor = clip_perceptor.eval()
         for param in self.perceptor.parameters():
             param.requires_grad = False
@@ -318,8 +281,6 @@ class VQGanDataFlow(nn.Module):
         self.clip_transform = create_clip_img_transform(input_res)
 
         print('CLIP Loaded, text, image encoded')
-
-        #END CLIP LOAD
 
         modsize = 288 if self.model_name == 'RN50x4' else 224
         xmem = {'RN50':0.5, 'RN50x4':0.16, 'RN101':0.33}
@@ -333,7 +294,7 @@ class VQGanDataFlow(nn.Module):
         config_vqgan = OmegaConf.load(self.model_path)
         model_vqgan = load_vqgan(config_vqgan, ckpt_path=self.ckpt_path).cuda()
 
-        class latents(torch.nn.Module):
+        class latents(nn.Module):
             def __init__(self, shape):
                 super(latents, self).__init__()
                 init_rnd = torch.zeros(shape).normal_(0.,4.)
