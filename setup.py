@@ -31,7 +31,7 @@ setup(
         'pytorch-lightning', #VQGan
         'imageio', #VQGan
         'pytorch-ssim', #VQGan
-        # 'clip', #VQGan, to remove
+        
     ],
     classifiers=[
         'Development Status :: 4 - Beta',

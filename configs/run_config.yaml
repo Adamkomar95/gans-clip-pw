@@ -2,6 +2,7 @@ train:
   epochs: 1
   iterations: 200
   text: "A sun in the glass pyramid"
+
 models:
   vqgan:
     lr: 0.1

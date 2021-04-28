@@ -24,21 +24,21 @@ def runner(cfg: DictConfig):
     print("Initializing training for configuration:")
     print(cfg.pretty())
 
-    # print('BigGanXClip starting.')
-    # biggan_pipeline = BigGanDataFlow(text=cfg.train.text,
-    #                                  epochs=cfg.train.epochs,
-    #                                  iterations=cfg.train.iterations)
-    # biggan_pipeline.run()
-    # print('BigGanXClip finished.')
+    print('BigGanXClip starting.')
+    biggan_pipeline = BigGanDataFlow(text=cfg.train.text,
+                                     epochs=cfg.train.epochs,
+                                     iterations=cfg.train.iterations)
+    biggan_pipeline.run()
+    print('BigGanXClip finished.')
 
 
 
-    # print('SirenXClip starting.')
-    # siren_pipeline = SirenDataFlow(text=cfg.train.text,
-    #                                 epochs=cfg.train.epochs,
-    #                                 iterations=cfg.train.iterations)
-    # siren_pipeline.run()
-    # print('SirenXClip finished.')
+    print('SirenXClip starting.')
+    siren_pipeline = SirenDataFlow(text=cfg.train.text,
+                                    epochs=cfg.train.epochs,
+                                    iterations=cfg.train.iterations)
+    siren_pipeline.run()
+    print('SirenXClip finished.')
 
     print('VQGanXClip starting.')
     vqgan_pipeline = VQGanDataFlow(text=cfg.train.text,
@@ -60,7 +60,6 @@ def runner(cfg: DictConfig):
 
     vqgan_pipeline.run()
     print('VQGanXClip finished.')
-
 
 
 if __name__ == '__main__':
