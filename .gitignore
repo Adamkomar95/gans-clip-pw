@@ -1,2 +1,14 @@
 **/.DS_Store
+**/__pycache__
 .idea
+pw_gans_clip.egg-info/
+.idea
+.vscode/
+.templates/
+__pycache__/
+_out/
+venv/
+result.jpg
+environment.yaml
+content/models_TT/last-1024.ckpt
+outputs/

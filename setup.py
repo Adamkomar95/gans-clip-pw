@@ -9,6 +9,7 @@ setup(
     description='PW-GANS-CLIP',
     author='Adam Komorowski, Maciej Domagała',
     keywords=[
+        'machine learning',
         'artificial intelligence',
         'deep learning',
         'transformers',
@@ -16,7 +17,21 @@ setup(
         'generative adversarial networks'
     ],
     install_requires=[
-        'numpy'
+        'torch>=1.7.1',
+        'torchvision>=0.8.2',
+        'tqdm',
+        'regex',
+        'ftfy',
+        'hydra-core', #configs management
+        'omegaconf', #configs management
+        'boto3',  # BigGAN
+        'requests', #BigGAN
+        'torch_optimizer',  # Siren
+        'siren_pytorch',  # Siren
+        'pytorch-lightning', #VQGan
+        'imageio', #VQGan
+        'pytorch-ssim', #VQGan
+        
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
