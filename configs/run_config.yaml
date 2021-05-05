@@ -6,6 +6,7 @@ train:
 models:
   vqgan:
     lr: 0.1
+    model_download_path: 'https://heibox.uni-heidelberg.de/f/140747ba53464f49b476/?dl=1'
     model_config: "configs/vqgan/model-1024.yaml"
     model_ckpt: "models/vqgan/last-1024.ckpt"
     model_name: "ViT-B/32"

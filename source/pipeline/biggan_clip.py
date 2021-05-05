@@ -9,22 +9,21 @@ Odpuszczam na razie signal (biblioteka do procesowania asynchronicznego i "bezpi
 
 from datetime import datetime
 from pathlib import Path
-from PIL import Image
-from tqdm import tqdm, trange
 
 import torch
 import torch.nn.functional as F
+from PIL import Image
+from source.models.clip.clip import load, tokenize
+from source.models.gans.BigGAN.BigGAN import BigGAN
+from source.pipeline.utils.ema import EMA
+from source.pipeline.utils.torch_utils import (create_clip_img_transform,
+                                               differentiable_topk,
+                                               rand_cutout)
+from source.pipeline.utils.utils import create_text_path, exists, open_folder
 from torch import nn
 from torch.optim import Adam
 from torchvision.utils import save_image
-
-from source.models.gans.BigGAN.BigGAN import BigGAN
-from source.models.clip.clip import load, tokenize
-from source.pipeline.utils.utils import exists, create_text_path, open_folder
-from source.pipeline.utils.torch_utils import differentiable_topk, create_clip_img_transform, rand_cutout
-from source.pipeline.utils.ema import EMA
-
-dev = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+from tqdm import tqdm, trange
 
 
 class Latents(torch.nn.Module):
@@ -273,6 +272,8 @@ class BigGanDataFlow:
         self.encoding = encoding
         self.text_min = text_min
 
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     @property
     def seed_suffix(self):
         return f'.{self.seed}' if self.append_seed and exists(self.seed) else ''
@@ -281,7 +282,7 @@ class BigGanDataFlow:
         self.text = text
         self.img = img
         if encoding is not None:
-            encoding = encoding.to(device=dev)
+            encoding = encoding.to(self.device)
         elif text is not None and img is not None:
             encoding = (self.create_text_encoding(text) +
                         self.create_img_encoding(img)) / 2
@@ -292,7 +293,7 @@ class BigGanDataFlow:
         return encoding
 
     def create_text_encoding(self, text):
-        tokenized_text = tokenize(text).to(device=dev)
+        tokenized_text = tokenize(text).to(self.device)
         with torch.no_grad():
             text_encoding = self.perceptor.encode_text(tokenized_text).detach()
         return text_encoding
@@ -300,7 +301,7 @@ class BigGanDataFlow:
     def create_img_encoding(self, img):
         if isinstance(img, str):
             img = Image.open(img)
-        normed_img = self.clip_transform(img).unsqueeze(0).to(device=dev)
+        normed_img = self.clip_transform(img).unsqueeze(0).to(self.device)
         with torch.no_grad():
             img_encoding = self.perceptor.encode_image(normed_img).detach()
         return img_encoding
@@ -340,7 +341,7 @@ class BigGanDataFlow:
 
     def reset(self):
         self.model.reset()
-        self.model = self.model.to(device=dev)
+        self.model = self.model.to(self.device)
         self.optimizer = Adam(self.model.model.latents.parameters(), self.lr)
 
     def train_step(self, epoch, i, pbar=None):
@@ -388,7 +389,7 @@ class BigGanDataFlow:
     def run(self):
 
         # CLIP
-        self.perceptor, self.normalize_image = load('ViT-B/32', jit=False)
+        self.perceptor, self.normalize_image = load('ViT-B/32', jit=False, device=self.device)
         self.clip_transform = create_clip_img_transform(224)
         self.set_clip_encoding(text=self.text, img=self.img,
                                encoding=self.encoding, text_min=self.text_min)
@@ -407,7 +408,7 @@ class BigGanDataFlow:
             ema_decay=self.ema_decay,
             num_cutouts=self.num_cutouts,
             center_bias=self.center_bias,
-        ).to(device=dev)
+        ).to(self.device)
 
         print('BigGAN loaded.')
 

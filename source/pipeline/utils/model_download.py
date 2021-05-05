@@ -7,7 +7,7 @@ import requests
 
 
 @hydra.main(config_path="./", config_name="model_download")
-def runner(cfg: DictConfig):
+def download_vqgan(cfg: DictConfig):
 
     #creates path for vqgan model to be saved
     save_path = os.path.join(pathlib.Path(__file__).parents[3], cfg.models.vqgan.model_save_path)
@@ -18,4 +18,4 @@ def runner(cfg: DictConfig):
     open(save_path, 'wb').write(vqgan_model.content)
 
 if __name__ == "__main__":
-    runner()
+    download_vqgan()

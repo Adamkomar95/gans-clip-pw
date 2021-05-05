@@ -24,6 +24,7 @@ ROOT_DIR = pathlib.Path(__file__).parent.absolute()
 
 @hydra.main(config_path="./configs", config_name="run_config")
 def runner(cfg: DictConfig):
+
     print("Initializing training for configuration:")
     print(cfg.pretty())
 
@@ -48,6 +49,7 @@ def runner(cfg: DictConfig):
                                     epochs=cfg.train.epochs,
                                     iterations=cfg.train.iterations,
                                     lr = cfg.models.vqgan.lr,
+                                    model_download_path=cfg.models.vqgan.model_download_path,
                                     model_path=cfg.models.vqgan.model_config,
                                     ckpt_path=cfg.models.vqgan.model_ckpt,
                                     model_name=cfg.models.vqgan.model_name,
