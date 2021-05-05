@@ -6,11 +6,6 @@ import pathlib
 import requests
 
 
-def download_vqgan_model(url, target_path):
-    filename = wget.download(url, out=target_path)
-    print('Downloaded VQGAN1024 model.')
-    return
-
 @hydra.main(config_path="./", config_name="model_download")
 def runner(cfg: DictConfig):
 
