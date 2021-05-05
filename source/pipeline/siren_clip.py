@@ -1,19 +1,20 @@
 import random
 from datetime import datetime
 from pathlib import Path
+
 import torch
+import torchvision.transforms as T
+from PIL import Image
 from siren_pytorch import SirenNet, SirenWrapper
+from source.models.clip.clip import load, tokenize
+from source.pipeline.utils.torch_utils import (create_clip_img_transform,
+                                               interpolate, rand_cutout)
+from source.pipeline.utils.utils import (create_text_path, default, exists,
+                                         open_folder)
 from torch import nn
 from torch.cuda.amp import GradScaler, autocast
-from torch_optimizer import DiffGrad, AdamP
-from PIL import Image
-import torchvision.transforms as T
-from tqdm import trange, tqdm
-
-
-from source.models.clip.clip import load, tokenize
-from source.pipeline.utils.utils import exists, default, open_folder, create_text_path
-from source.pipeline.utils.torch_utils import rand_cutout, create_clip_img_transform, interpolate
+from torch_optimizer import AdamP, DiffGrad
+from tqdm import tqdm, trange
 
 
 def norm_siren_output(img):
@@ -184,7 +185,7 @@ class SirenDataFlow(nn.Module):
             center_bias=False,
             center_focus=2,
             optimizer="AdamP",
-            jit=True,
+            jit=False,
             hidden_size=256,
     ):
 
@@ -202,10 +203,10 @@ class SirenDataFlow(nn.Module):
             torch.backends.cudnn.deterministic = True
             
         # jit models only compatible with version 1.7.1
-        if "1.7.1" not in torch.__version__:
-            if self.jit:
-                print("Setting jit to False because torch version is not 1.7.1.")
-            self.jit = False
+        # if "1.7.1" not in torch.__version__:
+        #     if self.jit:
+        #         print("Setting jit to False because torch version is not 1.7.1.")
+        #     self.jit = False
 
         self.iterations = iterations
         self.image_width = image_width
@@ -252,6 +253,8 @@ class SirenDataFlow(nn.Module):
         #                                      T.ToTensor()])
         #     image_tensor = start_img_transform(image).unsqueeze(0).to(self.device)
         #     self.start_image = image_tensor
+
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def create_clip_encoding(self, text=None, img=None, encoding=None):
         self.text = text
@@ -341,8 +344,7 @@ class SirenDataFlow(nn.Module):
     def run(self):
 
         # Load CLIP
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        clip_perceptor, norm = load(self.model_name, jit=self.jit, device=self.device)
+        clip_perceptor, norm = load(self.model_name, jit=False, device=self.device)
         self.perceptor = clip_perceptor.eval()
         for param in self.perceptor.parameters():
             param.requires_grad = False
@@ -418,7 +420,7 @@ class SirenDataFlow(nn.Module):
         #     del self.start_image
         #     del optim
 
-        tqdm.write(f'Imagining "{self.textpath}" from the depths of my weights...')
+        tqdm.write(f'Imagining "{self.text}" from the depths of my weights...')
 
         with torch.no_grad():
             self.model(self.clip_encoding, dry_run=True) # do one warmup step due to potential issue with CLIP and CUDA

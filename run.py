@@ -13,14 +13,18 @@ Adadelta:
 """
 
 import hydra
+import pathlib
 from omegaconf import DictConfig, OmegaConf
 
 from source.pipeline.biggan_clip import BigGanDataFlow
 from source.pipeline.siren_clip import SirenDataFlow
 from source.pipeline.vqgan_clip import VQGanDataFlow
 
+ROOT_DIR = pathlib.Path(__file__).parent.absolute()
+
 @hydra.main(config_path="./configs", config_name="run_config")
 def runner(cfg: DictConfig):
+
     print("Initializing training for configuration:")
     print(cfg.pretty())
 
@@ -45,6 +49,7 @@ def runner(cfg: DictConfig):
                                     epochs=cfg.train.epochs,
                                     iterations=cfg.train.iterations,
                                     lr = cfg.models.vqgan.lr,
+                                    model_download_path=cfg.models.vqgan.model_download_path,
                                     model_path=cfg.models.vqgan.model_config,
                                     ckpt_path=cfg.models.vqgan.model_ckpt,
                                     model_name=cfg.models.vqgan.model_name,
@@ -56,6 +61,7 @@ def runner(cfg: DictConfig):
                                     sync=cfg.models.vqgan.sync,
                                     overscan=cfg.models.vqgan.overscan,
                                     upload_image=cfg.models.vqgan.upload_image,
+                                    root_dir=ROOT_DIR,
                                     )
 
     vqgan_pipeline.run()

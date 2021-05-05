@@ -18,7 +18,7 @@ from omegaconf import DictConfig, OmegaConf
 from source.configs.config import Config
 from source.pipeline.biggan_clip import BigGanDataFlow
 from source.pipeline.siren_clip import SirenDataFlow
-# from source.pipeline.vqgan_clip import VQGanDataFlow
+from source.pipeline.vqgan_clip import VQGanDataFlow
 
 @hydra.main(config_name="config")
 def runner(cfg: Config):

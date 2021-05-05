@@ -1,25 +1,30 @@
-import random
 import os
-import imageio
-import numpy as np
-from omegaconf import OmegaConf
+import random
 from datetime import datetime
 from pathlib import Path
+import requests
+
+import imageio
+import numpy as np
 import torch
-from siren_pytorch import SirenNet, SirenWrapper
-from torch import nn
 import torch.nn.functional as F
-from torch.cuda.amp import GradScaler, autocast
-from torch_optimizer import DiffGrad, AdamP
-from PIL import Image
 import torchvision.transforms as T
-from tqdm import trange, tqdm
-
+import wget
+from omegaconf import OmegaConf
+from PIL import Image
+from siren_pytorch import SirenNet, SirenWrapper
 from source.models.clip.clip import load, tokenize
-from source.pipeline.utils.utils import exists, default, open_folder, create_text_path, load_vqgan, vqgan_image, slice_imgs, checkout
-from source.pipeline.utils.torch_utils import rand_cutout, create_clip_img_transform, interpolate
-
+from source.pipeline.utils.torch_utils import (create_clip_img_transform,
+                                               interpolate, rand_cutout)
+from source.pipeline.utils.utils import (checkout, create_text_path, default,
+                                         exists, load_vqgan, open_folder,
+                                         slice_imgs, vqgan_image)
 from taming.models.vqgan import VQModel
+from torch import nn
+from torch.cuda.amp import GradScaler, autocast
+from torch_optimizer import AdamP, DiffGrad
+from tqdm import tqdm, trange
+
 
 class VQGan(nn.Module):
     def __init__(
@@ -34,17 +39,6 @@ class VQGan(nn.Module):
             loss_coef=100,
             theta_initial=None,
             theta_hidden=None,
-            lower_bound_cutout=0.1, # should be smaller than 0.8
-            upper_bound_cutout=1.0,
-            saturate_bound=False,
-            gauss_sampling=False,
-            gauss_mean=0.6,
-            gauss_std=0.2,
-            do_cutout=True,
-            center_bias=False,
-            center_focus=2,
-            hidden_size=256,
-            averaging_weight=0.3,
     ):
         super().__init__()
         # load clip
@@ -87,18 +81,8 @@ class VQGanDataFlow(nn.Module):
             theta_initial=None,
             theta_hidden=None,
             model_name="ViT-B/32", # można w BigSleep tak samo podawać model w parametrze
-            lower_bound_cutout=0.1, # should be smaller than 0.8
-            upper_bound_cutout=1.0,
-            saturate_bound=False,
-            averaging_weight=0.3,
-            gauss_sampling=False,
-            gauss_mean=0.6,
-            gauss_std=0.2,
-            do_cutout=True,
-            center_bias=False,
-            center_focus=2,
             optimizer="AdamP",
-            jit=True,
+            jit=False,
             hidden_size=256,
             model_path="./",
             model_size=1024,
@@ -109,7 +93,9 @@ class VQGanDataFlow(nn.Module):
             samples = 1.,
             save_freq = 1,
             overscan = False,
-            upload_image = False
+            upload_image = False,
+            root_dir='',
+            model_download_path='',
     ):
 
         super().__init__()
@@ -125,11 +111,11 @@ class VQGanDataFlow(nn.Module):
             random.seed(seed)
             torch.backends.cudnn.deterministic = True
             
-        # jit models only compatible with version 1.7.1
-        if "1.7.1" not in torch.__version__:
-            if self.jit:
-                print("Setting jit to False because torch version is not 1.7.1.")
-            self.jit = False
+        # # jit models only compatible with version 1.7.1
+        # if "1.7.1" not in torch.__version__:
+        #     if self.jit:
+        #         print("Setting jit to False because torch version is not 1.7.1.")
+        #     self.jit = False
 
         self.iterations = iterations
         self.image_width = image_width
@@ -139,17 +125,6 @@ class VQGanDataFlow(nn.Module):
         self.num_layers = num_layers
         self.theta_initial = theta_initial
         self.theta_hidden = theta_hidden
-        self.lower_bound_cutout = lower_bound_cutout
-        self.upper_bound_cutout = upper_bound_cutout
-        self.saturate_bound = saturate_bound
-        self.gauss_sampling = gauss_sampling
-        self.gauss_mean = gauss_mean
-        self.gauss_std = gauss_std
-        self.do_cutout = do_cutout
-        self.center_bias = center_bias
-        self.center_focus = center_focus
-        self.hidden_size = hidden_size
-        self.averaging_weight = averaging_weight
         self.lr = lr
         self.optimizer = optimizer
         self.model = None
@@ -165,6 +140,7 @@ class VQGanDataFlow(nn.Module):
 
         #VQGan addition
         self.model_path = model_path
+        self.model_download_path = model_download_path
         self.ckpt_path = ckpt_path
         self.sideX = sideX #@param {type:"integer"}
         self.sideY = sideY #@param {type:"integer"}
@@ -175,6 +151,9 @@ class VQGanDataFlow(nn.Module):
         self.overscan = overscan
         self.sync = sync
         self.save_freq = save_freq
+
+        #path managment
+        self.root_dir = root_dir
 
 
     def create_clip_encoding(self, text=None, img=None, encoding=None):
@@ -262,11 +241,32 @@ class VQGanDataFlow(nn.Module):
 
         tqdm.write(f'image updated at "./{str(self.filename)}"')
 
+    def model_download(self):
+
+        """
+        Downloading VQGan model.
+        """
+
+        #creates path for vqgan model to be saved
+        save_path = os.path.join(self.root_dir, self.ckpt_path)
+        #sets vqgan model download
+        if not Path(save_path).is_file():
+            print("Downloading VQGAN model")
+            vqgan_model = requests.get(self.model_download_path)
+            open(save_path, 'wb').write(vqgan_model.content)
+        else:
+            print('VQGAN model already downloaded')
+
+        return
+
     def run(self):
 
         workdir = '_out'
         tempdir = os.path.join(workdir, 'out')
         os.makedirs(tempdir, exist_ok=True)
+
+        #Download VQGan if necessary
+        self.model_download()
 
         # Load CLIP
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -291,8 +291,13 @@ class VQGanDataFlow(nn.Module):
             print(' text:', self.text)
             txt_enc = self.create_text_encoding(self.text)
 
-        config_vqgan = OmegaConf.load(self.model_path)
-        model_vqgan = load_vqgan(config_vqgan, ckpt_path=self.ckpt_path).cuda()
+        print(self.root_dir)
+
+        abs_model_path = os.path.join(self.root_dir, self.model_path)
+        abs_ckpt_path = os.path.join(self.root_dir, self.ckpt_path)
+
+        config_vqgan = OmegaConf.load(abs_model_path)
+        model_vqgan = load_vqgan(config_vqgan, ckpt_path=abs_ckpt_path).to(self.device)
 
         class latents(nn.Module):
             def __init__(self, shape):
