@@ -1,0 +1,4 @@
+models:
+  vqgan:
+    model_download_path: 'https://heibox.uni-heidelberg.de/f/140747ba53464f49b476/?dl=1'
+    model_save_path: "models/vqgan/last-1024.ckpt"
