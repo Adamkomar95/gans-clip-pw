@@ -1,6 +1,7 @@
 import random
 import os
 import imageio
+import wget
 import numpy as np
 from omegaconf import OmegaConf
 from datetime import datetime
@@ -109,7 +110,8 @@ class VQGanDataFlow(nn.Module):
             samples = 1.,
             save_freq = 1,
             overscan = False,
-            upload_image = False
+            upload_image = False,
+            root_dir='',
     ):
 
         super().__init__()
@@ -175,6 +177,9 @@ class VQGanDataFlow(nn.Module):
         self.overscan = overscan
         self.sync = sync
         self.save_freq = save_freq
+
+        #path managment
+        self.root_dir = root_dir
 
 
     def create_clip_encoding(self, text=None, img=None, encoding=None):
@@ -291,8 +296,13 @@ class VQGanDataFlow(nn.Module):
             print(' text:', self.text)
             txt_enc = self.create_text_encoding(self.text)
 
-        config_vqgan = OmegaConf.load(self.model_path)
-        model_vqgan = load_vqgan(config_vqgan, ckpt_path=self.ckpt_path).cuda()
+        print(self.root_dir)
+
+        abs_model_path = os.path.join(self.root_dir, self.model_path)
+        abs_ckpt_path = os.path.join(self.root_dir, self.ckpt_path)
+
+        config_vqgan = OmegaConf.load(abs_model_path)
+        model_vqgan = load_vqgan(config_vqgan, ckpt_path=abs_ckpt_path).to(self.device)
 
         class latents(nn.Module):
             def __init__(self, shape):

@@ -271,11 +271,11 @@ class BigGAN(nn.Module):
                          WEIGHTS_NAME, CONFIG_NAME, PRETRAINED_MODEL_ARCHIVE_MAP.keys()))
             raise
 
-        logger.info("loading model {} from cache at {}".format(pretrained_model_name_or_path, resolved_model_file))
+        # logger.info("loading model {} from cache at {}".format(pretrained_model_name_or_path, resolved_model_file))
 
         # Load config
         config = BigGANConfig.from_json_file(resolved_config_file)
-        logger.info("Model config {}".format(config))
+        # logger.info("Model config {}".format(config))
 
         # Instantiate model.
         model = cls(config, *inputs, **kwargs)

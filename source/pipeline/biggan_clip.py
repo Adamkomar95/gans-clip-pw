@@ -417,7 +417,7 @@ class BigGanDataFlow:
         penalizing = ""
         if len(self.text_min) > 0:
             penalizing = f'penalizing "{self.text_min}"'
-        print(f'Imagining "{self.text_path}" {penalizing}...')
+        print(f'Imagining "{self.text}" {penalizing}...')
 
         with torch.no_grad():
             # one warmup step due to issue with CLIP and CUDA

@@ -1,13 +1,13 @@
 train:
   epochs: 1
-  iterations: 200
-  text: "A sun in the glass pyramid"
+  iterations: 10
+  text: "Sun in the grass"
 
 models:
   vqgan:
     lr: 0.1
-    model_config: "/home/mdomagala/Pulpit/gans-clip-pw/configs/vqgan/model-1024.yaml"
-    model_ckpt: "/home/mdomagala/Pulpit/gans-clip-pw/models/vqgan/last-1024.ckpt"
+    model_config: "configs/vqgan/model-1024.yaml"
+    model_ckpt: "models/vqgan/last-1024.ckpt"
     model_name: "ViT-B/32"
     model_size: 1024
     sideX: 200
