@@ -24,6 +24,8 @@ from source.pipeline.utils.utils import exists, create_text_path, open_folder
 from source.pipeline.utils.torch_utils import differentiable_topk, create_clip_img_transform, rand_cutout
 from source.pipeline.utils.ema import EMA
 
+dev = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+
 
 class Latents(torch.nn.Module):
     def __init__(
@@ -35,8 +37,10 @@ class Latents(torch.nn.Module):
             class_temperature=2.
     ):
         super().__init__()
-        self.normu = torch.nn.Parameter(torch.zeros(num_latents, z_dim).normal_(std=1))
-        self.cls = torch.nn.Parameter(torch.zeros(num_latents, num_classes).normal_(mean=-3.9, std=.3))
+        self.normu = torch.nn.Parameter(
+            torch.zeros(num_latents, z_dim).normal_(std=1))
+        self.cls = torch.nn.Parameter(torch.zeros(
+            num_latents, num_classes).normal_(mean=-3.9, std=.3))
         self.register_buffer('thresh_lat', torch.tensor(1))
 
         assert not exists(
@@ -46,7 +50,8 @@ class Latents(torch.nn.Module):
 
     def forward(self):
         if exists(self.max_classes):
-            classes = differentiable_topk(self.cls, self.max_classes, temperature=self.class_temperature)
+            classes = differentiable_topk(
+                self.cls, self.max_classes, temperature=self.class_temperature)
         else:
             classes = torch.sigmoid(self.cls)
 
@@ -66,8 +71,10 @@ class Model(nn.Module):
             ema_decay=0.99
     ):
         super().__init__()
-        assert image_size in (128, 256, 512), 'image size must be one of 128, 256, or 512'
-        self.biggan = BigGAN.from_pretrained(f'biggan-deep-{image_size}')  # TU POJAWIA SIE GAN
+        assert image_size in (
+            128, 256, 512), 'image size must be one of 128, 256, or 512'
+        self.biggan = BigGAN.from_pretrained(
+            f'biggan-deep-{image_size}')  # TU POJAWIA SIE GAN
         self.max_classes = max_classes
         self.class_temperature = class_temperature
         self.ema_decay \
@@ -119,7 +126,8 @@ class BigSleep(nn.Module):
         # self.experimental_resample = experimental_resample, # not using resample currently
         self.center_bias = center_bias
 
-        self.interpolation_settings = {'mode': 'bilinear', 'align_corners': False} if bilinear else {'mode': 'nearest'}
+        self.interpolation_settings = {
+            'mode': 'bilinear', 'align_corners': False} if bilinear else {'mode': 'nearest'}
 
         self.model = Model(
             image_size=image_size,
@@ -151,10 +159,12 @@ class BigSleep(nn.Module):
         pieces = []
         for ch in range(num_cutouts):
             # sample cutout size
-            size = int(width * torch.zeros(1, ).normal_(mean=.8, std=.3).clip(.5, .95))
+            size = int(
+                width * torch.zeros(1, ).normal_(mean=.8, std=.3).clip(.5, .95))
             # get cutout
             apper = rand_cutout(out, size, center_bias=self.center_bias)
-            apper = F.interpolate(apper, (224, 224), **self.interpolation_settings)
+            apper = F.interpolate(apper, (224, 224), **
+                                  self.interpolation_settings)
             pieces.append(apper)
 
         into = torch.cat(pieces)
@@ -167,8 +177,8 @@ class BigSleep(nn.Module):
         latent_thres = self.model.latents.model.thresh_lat
 
         lat_loss = torch.abs(1 - torch.std(latents, dim=1)).mean() + \
-                   torch.abs(torch.mean(latents, dim=1)).mean() + \
-                   4 * torch.max(torch.square(latents).mean(), latent_thres)
+            torch.abs(torch.mean(latents, dim=1)).mean() + \
+            4 * torch.max(torch.square(latents).mean(), latent_thres)
 
         for array in latents:
             mean = torch.mean(array)
@@ -179,15 +189,19 @@ class BigSleep(nn.Module):
             skews = torch.mean(torch.pow(zscores, 3.0))
             kurtoses = torch.mean(torch.pow(zscores, 4.0)) - 3.0
 
-            lat_loss = lat_loss + torch.abs(kurtoses) / num_latents + torch.abs(skews) / num_latents
+            lat_loss = lat_loss + \
+                torch.abs(kurtoses) / num_latents + \
+                torch.abs(skews) / num_latents
 
-        cls_loss = ((50 * torch.topk(soft_one_hot_classes, largest=False, dim=1, k=999)[0]) ** 2).mean()
+        cls_loss = ((50 * torch.topk(soft_one_hot_classes,
+                                     largest=False, dim=1, k=999)[0]) ** 2).mean()
 
         results = []
         for txt_embed in text_embeds:
             results.append(self.sim_txt_to_img(txt_embed, image_embed))
         for txt_min_embed in text_min_embeds:
-            results.append(self.sim_txt_to_img(txt_min_embed, image_embed, "min"))
+            results.append(self.sim_txt_to_img(
+                txt_min_embed, image_embed, "min"))
         sim_loss = sum(results).mean()
         return out, (lat_loss, cls_loss, sim_loss)
 
@@ -246,7 +260,8 @@ class BigGanDataFlow:
         self.current_best_score = 0
 
         self.open_folder = open_folder
-        self.total_image_updates = (self.epochs * self.iterations) / self.save_every
+        self.total_image_updates = (
+            self.epochs * self.iterations) / self.save_every
         self.encoded_texts = {
             "max": [],  # te słowa chcemy na obrazie
             "min": []  # tych nie chcemy
@@ -266,9 +281,10 @@ class BigGanDataFlow:
         self.text = text
         self.img = img
         if encoding is not None:
-            encoding = encoding.cuda()
+            encoding = encoding.to(device=dev)
         elif text is not None and img is not None:
-            encoding = (self.create_text_encoding(text) + self.create_img_encoding(img)) / 2
+            encoding = (self.create_text_encoding(text) +
+                        self.create_img_encoding(img)) / 2
         elif text is not None:
             encoding = self.create_text_encoding(text)
         elif img is not None:
@@ -276,7 +292,7 @@ class BigGanDataFlow:
         return encoding
 
     def create_text_encoding(self, text):
-        tokenized_text = tokenize(text).cuda()
+        tokenized_text = tokenize(text).to(device=dev)
         with torch.no_grad():
             text_encoding = self.perceptor.encode_text(tokenized_text).detach()
         return text_encoding
@@ -284,7 +300,7 @@ class BigGanDataFlow:
     def create_img_encoding(self, img):
         if isinstance(img, str):
             img = Image.open(img)
-        normed_img = self.clip_transform(img).unsqueeze(0).cuda()
+        normed_img = self.clip_transform(img).unsqueeze(0).to(device=dev)
         with torch.no_grad():
             img_encoding = self.perceptor.encode_image(normed_img).detach()
         return img_encoding
@@ -294,12 +310,14 @@ class BigGanDataFlow:
             self.encoded_texts[text_type] = [self.create_clip_encoding(text=prompt_min, img=img, encoding=encoding) for
                                              prompt_min in text.split("|")]
         else:
-            self.encoded_texts[text_type] = [self.create_clip_encoding(text=text, img=img, encoding=encoding)]
+            self.encoded_texts[text_type] = [
+                self.create_clip_encoding(text=text, img=img, encoding=encoding)]
 
     def encode_max_and_min(self, text, img=None, encoding=None, text_min=""):
         self.encode_multiple_phrases(text, img=img, encoding=encoding)
         if text_min is not None and text_min != "":
-            self.encode_multiple_phrases(text_min, img=img, encoding=encoding, text_type="min")
+            self.encode_multiple_phrases(
+                text_min, img=img, encoding=encoding, text_type="min")
 
     def set_clip_encoding(self, text=None, img=None, encoding=None, text_min=""):
         self.current_best_score = 0
@@ -307,25 +325,30 @@ class BigGanDataFlow:
         self.text_min = text_min
 
         if len(text_min) > 0:
-            text = text + "_wout_" + text_min[:255] if text is not None else "wout_" + text_min[:255]
+            text = text + "_wout_" + \
+                text_min[:255] if text is not None else "wout_" + \
+                text_min[:255]
         text_path = create_text_path(text=text, img=img, encoding=encoding)
         if self.save_date_time:
             text_path = datetime.now().strftime("%y%m%d-%H%M%S-") + text_path
 
         self.text_path = text_path
         self.filename = Path(f'./biggan_{text_path}{self.seed_suffix}.png')
-        self.encode_max_and_min(text, img=img, encoding=encoding, text_min=text_min)  # Tokenize and encode each prompt
+        # Tokenize and encode each prompt
+        self.encode_max_and_min(
+            text, img=img, encoding=encoding, text_min=text_min)
 
     def reset(self):
         self.model.reset()
-        self.model = self.model.cuda()
+        self.model = self.model.to(device=dev)
         self.optimizer = Adam(self.model.model.latents.parameters(), self.lr)
 
     def train_step(self, epoch, i, pbar=None):
         total_loss = 0
 
         for _ in range(self.gradient_accumulate_every):
-            out, losses = self.model(self.encoded_texts["max"], self.encoded_texts["min"])
+            out, losses = self.model(
+                self.encoded_texts["max"], self.encoded_texts["min"])
             loss = sum(losses) / self.gradient_accumulate_every
             total_loss += loss
             loss.backward()
@@ -337,7 +360,8 @@ class BigGanDataFlow:
         if (i + 1) % self.save_every == 0:
             with torch.no_grad():
                 self.model.model.latents.eval()
-                out, losses = self.model(self.encoded_texts["max"], self.encoded_texts["min"])
+                out, losses = self.model(
+                    self.encoded_texts["max"], self.encoded_texts["min"])
                 top_score, best = torch.topk(losses[2], k=1, largest=False)
                 image = self.model.model()[best].cpu()
                 self.model.model.latents.train()
@@ -351,11 +375,13 @@ class BigGanDataFlow:
                 if self.save_progress:
                     total_iterations = epoch * self.iterations + i
                     num = total_iterations // self.save_every
-                    save_image(image, Path(f'./{self.text_path}.{num}{self.seed_suffix}.png'))
+                    save_image(image, Path(
+                        f'./{self.text_path}.{num}{self.seed_suffix}.png'))
 
                 if self.save_best and top_score.item() < self.current_best_score:
                     self.current_best_score = top_score.item()
-                    save_image(image, Path(f'./{self.text_path}{self.seed_suffix}.best.png'))
+                    save_image(image, Path(
+                        f'./{self.text_path}{self.seed_suffix}.best.png'))
 
         return out, total_loss
 
@@ -364,7 +390,8 @@ class BigGanDataFlow:
         # CLIP
         self.perceptor, self.normalize_image = load('ViT-B/32', jit=False)
         self.clip_transform = create_clip_img_transform(224)
-        self.set_clip_encoding(text=self.text, img=self.img, encoding=self.encoding, text_min=self.text_min)
+        self.set_clip_encoding(text=self.text, img=self.img,
+                               encoding=self.encoding, text_min=self.text_min)
 
         print('CLIP loaded, CLIP text encoding finished.')
 
@@ -380,11 +407,12 @@ class BigGanDataFlow:
             ema_decay=self.ema_decay,
             num_cutouts=self.num_cutouts,
             center_bias=self.center_bias,
-        ).cuda()
+        ).to(device=dev)
 
         print('BigGAN loaded.')
 
-        self.optimizer = Adam(self.model.model.latents.model.parameters(), self.lr)
+        self.optimizer = Adam(
+            self.model.model.latents.model.parameters(), self.lr)
 
         penalizing = ""
         if len(self.text_min) > 0:
@@ -392,15 +420,18 @@ class BigGanDataFlow:
         print(f'Imagining "{self.text_path}" {penalizing}...')
 
         with torch.no_grad():
-            self.model(self.encoded_texts["max"][0])  # one warmup step due to issue with CLIP and CUDA
+            # one warmup step due to issue with CLIP and CUDA
+            self.model(self.encoded_texts["max"][0])
 
         if self.open_folder:
             open_folder('./')
             self.open_folder = False
 
-        image_pbar = tqdm(total=self.total_image_updates, desc='image update', position=2, leave=True)
+        image_pbar = tqdm(total=self.total_image_updates,
+                          desc='image update', position=2, leave=True)
         for epoch in trange(self.epochs, desc='      epochs', position=0, leave=True):
-            pbar = trange(self.iterations, desc='   iteration', position=1, leave=True)
+            pbar = trange(self.iterations, desc='   iteration',
+                          position=1, leave=True)
             image_pbar.update(0)
             for i in pbar:
                 out, loss = self.train_step(epoch, i, image_pbar)
